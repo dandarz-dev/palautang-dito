@@ -55,10 +55,10 @@
 </head>
 <body class="bg-gradient-to-br from-zinc-950 via-zinc-900 to-red-950/30 min-h-screen font-sans text-zinc-100 antialiased selection:bg-red-600 selection:text-white">
 
-    <!-- MANUAL ARROW TOGGLE BUTTON & FLOATING BUTTONS WRAPPER (MIDDLE LEFTSIDE) -->
-    <div id="sideButtonContainer" class="hidden fixed left-4 top-1/2 -translate-y-1/2 z-40 flex items-center gap-2">
+    <!-- MANUAL ARROW TOGGLE BUTTON & FLOATING BUTTONS WRAPPER (BOTTOM CENTER) -->
+    <div id="sideButtonContainer" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2">
         <!-- The actual floating buttons wrapper -->
-        <div id="sideButtonWrapper" class="flex flex-col gap-3 transition-all duration-300 transform -translate-x-full opacity-0 pointer-events-none">
+        <div id="sideButtonWrapper" class="flex flex-row-reverse gap-3 transition-all duration-300 transform translate-y-12 opacity-0 pointer-events-none">
             <!-- Add New Debt Floating Button (Triggers GCash Donation Popup) -->
             <button onclick="triggerAddDebtWithDonation()" title="Add New Debt" class="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold p-3.5 rounded-full shadow-2xl shadow-red-950/80 border border-red-400/30 flex items-center justify-center transition-all transform hover:scale-105">
                 <i class="fa-solid fa-user-plus text-lg"></i>
@@ -73,9 +73,9 @@
             </button>
         </div>
         
-        <!-- Manual Arrow Button to Toggle Leftside Pane -->
-        <button id="sideToggleArrowBtn" onclick="toggleSideMenuPane()" title="Toggle Menu" class="bg-zinc-900 hover:bg-zinc-800 text-white p-3 rounded-full shadow-2xl border border-zinc-700 flex items-center justify-center transition-all transform hover:scale-105">
-            <i id="sideToggleArrowIcon" class="fa-solid fa-chevron-right text-sm text-red-500"></i>
+        <!-- Manual Arrow Button to Toggle Bottom Pane -->
+        <button id="sideToggleArrowBtn" onclick="toggleSideMenuPane()" title="Toggle Menu" class="bg-zinc-900 hover:bg-zinc-800 text-white p-3.5 rounded-full shadow-2xl border border-zinc-700 flex items-center justify-center transition-all transform hover:scale-105">
+            <i id="sideToggleArrowIcon" class="fa-solid fa-chevron-up text-sm text-red-500"></i>
         </button>
     </div>
 
@@ -859,13 +859,13 @@
             isSideMenuOpen = !isSideMenuOpen;
             
             if (isSideMenuOpen) {
-                wrapper.classList.remove('-translate-x-full', 'opacity-0', 'pointer-events-none');
-                wrapper.classList.add('translate-x-0', 'opacity-100', 'pointer-events-auto');
-                icon.className = "fa-solid fa-chevron-left text-sm text-red-500";
+                wrapper.classList.remove('translate-y-12', 'opacity-0', 'pointer-events-none');
+                wrapper.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
+                icon.className = "fa-solid fa-chevron-down text-sm text-red-500";
             } else {
-                wrapper.classList.remove('translate-x-0', 'opacity-100', 'pointer-events-auto');
-                wrapper.classList.add('-translate-x-full', 'opacity-0', 'pointer-events-none');
-                icon.className = "fa-solid fa-chevron-right text-sm text-red-500";
+                wrapper.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+                wrapper.classList.add('translate-y-12', 'opacity-0', 'pointer-events-none');
+                icon.className = "fa-solid fa-chevron-up text-sm text-red-500";
             }
         }
 
@@ -1729,121 +1729,150 @@
             document.getElementById('recordCount').innerText = `${debts.length} records`;
 
             if (debts.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-zinc-500 text-sm">No debt records found. Click the side button to add a new debt!</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-zinc-500 text-sm">No debt records found. Click the side button to add a debt.</td></tr>`;
+                updateSummaryValues(0, 0, 0);
+                renderCharts([], []);
                 return;
             }
 
+            let totalL = 0;
+            let totalP = 0;
+            let totalB = 0;
+
             debts.forEach((debt, index) => {
-                const totalDebt = calculateCurrentTotal(debt);
-                const balance = Math.max(0, totalDebt - debt.paidAmount);
-                
-                let interestDisplay = '';
-                if (debt.interestType === 'fixed') interestDisplay = `₱${debt.overrideInterest || 0} / mo (Fixed)`;
-                else if (debt.interestType === 'none') interestDisplay = 'No Interest';
-                else interestDisplay = `${debt.interestRate || 0}% (${debt.interestType || 'simple'})`;
+                const currentTotal = calculateCurrentTotal(debt);
+                const balance = Math.max(0, currentTotal - debt.paidAmount);
+
+                totalL += currentTotal;
+                totalP += debt.paidAmount;
+                totalB += balance;
 
                 const row = document.createElement('tr');
-                row.className = "hover:bg-zinc-800/40 transition border-b border-zinc-800/60";
+                row.className = "hover:bg-zinc-800/40 transition";
                 row.innerHTML = `
-                    <td class="py-3.5 px-4 font-bold text-white flex items-center gap-2">
-                        <span>${debt.name}</span>
+                    <td class="py-3.5 px-4 font-bold text-white">${debt.name}</td>
+                    <td class="py-3.5 px-4 text-zinc-300">${formatCurrency(debt.amount)}</td>
+                    <td class="py-3.5 px-4 text-zinc-300 text-xs font-semibold">
+                        <span class="px-2.5 py-1 rounded-lg bg-zinc-800 border border-zinc-700">
+                            ${debt.interestType.toUpperCase()} (${debt.interestType === 'fixed' ? formatCurrency(debt.overrideInterest) : debt.interestRate + '%'})
+                        </span>
                     </td>
-                    <td class="py-3.5 px-4 font-semibold text-zinc-200">${formatCurrency(debt.amount)}</td>
-                    <td class="py-3.5 px-4 text-xs text-zinc-300">${interestDisplay}</td>
-                    <td class="py-3.5 px-4 font-bold text-red-400">${formatCurrency(totalDebt)}</td>
-                    <td class="py-3.5 px-4 font-bold text-emerald-400">${formatCurrency(debt.paidAmount)}</td>
-                    <td class="py-3.5 px-4 font-bold ${balance <= 0 ? 'text-emerald-400' : 'text-amber-400'}">${formatCurrency(balance)}</td>
-                    <td class="py-3.5 px-4 text-xs text-zinc-400">${debt.date}</td>
-                    <td class="py-3.5 px-4 text-xs text-zinc-400">${debt.dueDate || '-'}</td>
-                    <td class="py-3.5 px-4 text-xs text-zinc-400">${debt.lastPaymentDate || '-'}</td>
+                    <td class="py-3.5 px-4 text-rose-400 font-bold">${formatCurrency(currentTotal)}</td>
+                    <td class="py-3.5 px-4 text-emerald-400 font-bold">${formatCurrency(debt.paidAmount)}</td>
+                    <td class="py-3.5 px-4 text-amber-400 font-bold">${formatCurrency(balance)}</td>
+                    <td class="py-3.5 px-4 text-zinc-300 text-xs">${debt.date}</td>
+                    <td class="py-3.5 px-4 text-zinc-300 text-xs">${debt.dueDate || 'N/A'}</td>
+                    <td class="py-3.5 px-4 text-zinc-400 text-xs">${debt.lastPaymentDate || 'None'}</td>
                     <td class="py-3.5 px-4 text-center">
-                        <div class="inline-block relative">
-                            <select onchange="handleDebtorActionDropdown(this, ${index})" class="bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-red-500 cursor-pointer shadow-sm">
-                                <option value="" disabled selected>⚙️ Options</option>
-                                <option value="pay" class="bg-zinc-900 text-emerald-400 font-semibold">💵 Record Payment</option>
-                                <option value="logs" class="bg-zinc-900 text-red-400 font-semibold">📋 Transaction Logs</option>
-                                <option value="schedule" class="bg-zinc-900 text-amber-300 font-semibold">📅 Amortization Schedule</option>
-                                <option value="delete" class="bg-zinc-900 text-rose-400 font-semibold">🗑️ Delete Record</option>
-                            </select>
-                        </div>
+                        <select onchange="handleDebtorActionDropdown(this, ${index})" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white text-xs rounded-xl px-3 py-2 font-semibold focus:outline-none transition cursor-pointer">
+                            <option value="">⚙️ Select Action</option>
+                            <option value="pay">💵 Record Payment</option>
+                            <option value="logs">📋 Track Payments</option>
+                            <option value="schedule">📅 Amortization Schedule</option>
+                            <option value="delete">🗑️ Delete Record</option>
+                        </select>
                     </td>
                 `;
                 tbody.appendChild(row);
             });
+
+            updateSummaryValues(totalL, totalP, totalB);
+            renderCharts(debts, debtorAccounts);
         }
 
-        function openAmortizationModal(index) {
-            const debt = debts[index];
-            document.getElementById('amortizationDebtorName').innerText = `${debt.name} (${formatCurrency(debt.amount)})`;
-            const schedule = generateAmortizationSchedule(debt);
-            const tbody = document.getElementById('amortizationTableBody');
-            tbody.innerHTML = '';
-
-            if (schedule.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-zinc-500 text-xs">No amortization schedule available.</td></tr>`;
-            } else {
-                schedule.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.className = "hover:bg-zinc-800/40 transition";
-                    row.innerHTML = `
-                        <td class="py-3 px-4 font-bold text-white">Month ${item.period}</td>
-                        <td class="py-3 px-4 text-zinc-300">${item.dueDate}</td>
-                        <td class="py-3 px-4 text-right font-semibold text-zinc-200">${formatCurrency(item.principal)}</td>
-                        <td class="py-3 px-4 text-right font-semibold text-red-400">${formatCurrency(item.interest)}</td>
-                        <td class="py-3 px-4 text-right font-bold text-emerald-400">${formatCurrency(item.totalPayment)}</td>
-                        <td class="py-3 px-4 text-right font-bold text-amber-400">${formatCurrency(item.remainingBalance)}</td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            }
-
-            const modal = document.getElementById('amortizationModal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            window.currentAmortizationIndex = index;
+        function updateSummaryValues(lent, paid, balance) {
+            document.getElementById('totalLent').innerText = formatCurrency(lent);
+            document.getElementById('totalPaid').innerText = formatCurrency(paid);
+            document.getElementById('totalBalance').innerText = formatCurrency(balance);
         }
 
-        function closeAmortizationModal() {
-            const modal = document.getElementById('amortizationModal');
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
+        function updateSummary() {
+            renderTable();
         }
 
-        function printAmortizationSchedule() {
-            window.print();
-        }
+        function renderCharts(debtsList, usersList) {
+            const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+            const yearlyCtx = document.getElementById('yearlyChart').getContext('2d');
 
-        function exportAmortizationExcel() {
-            const index = window.currentAmortizationIndex;
-            if (index === undefined || !debts[index]) return;
-            const debt = debts[index];
-            const schedule = generateAmortizationSchedule(debt);
+            let monthlyTotals = new Array(12).fill(0);
+            const currentYear = new Date().getFullYear();
 
-            const exportData = schedule.map(item => ({
-                "Month / Period": `Month ${item.period}`,
-                "Due Date": item.dueDate,
-                "Principal (₱)": item.principal.toFixed(2),
-                "Interest (₱)": item.interest.toFixed(2),
-                "Total Payment (₱)": item.totalPayment.toFixed(2),
-                "Remaining Balance (₱)": item.remainingBalance.toFixed(2)
-            }));
+            debtsList.forEach(debt => {
+                if (debt.date) {
+                    const d = new Date(debt.date);
+                    if (d.getFullYear() === currentYear) {
+                        const m = d.getMonth();
+                        monthlyTotals[m] += parseFloat(debt.amount) || 0;
+                    }
+                }
+            });
 
-            const worksheet = XLSX.utils.json_to_sheet(exportData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Amortization");
-            XLSX.writeFile(workbook, `Amortization_${debt.name.replace(/\s+/g, '_')}.xlsx`);
+            if (monthlyChartInstance) monthlyChartInstance.destroy();
+            monthlyChartInstance = new Chart(monthlyCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    datasets: [{
+                        label: `Loan Principal (${currentYear})`,
+                        data: monthlyTotals,
+                        backgroundColor: 'rgba(220, 38, 38, 0.7)',
+                        borderColor: 'rgb(239, 68, 68)',
+                        borderWidth: 1,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#a1a1aa' } },
+                        x: { grid: { display: false }, ticks: { color: '#a1a1aa' } }
+                    }
+                }
+            });
+
+            let totalLentSum = 0;
+            let totalPaidSum = 0;
+            debtsList.forEach(debt => {
+                totalLentSum += calculateCurrentTotal(debt);
+                totalPaidSum += debt.paidAmount;
+            });
+            let totalRemainingSum = Math.max(0, totalLentSum - totalPaidSum);
+
+            if (yearlyChartInstance) yearlyChartInstance.destroy();
+            yearlyChartInstance = new Chart(yearlyCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Total Paid', 'Remaining Balance'],
+                    datasets: [{
+                        data: [totalPaidSum, totalRemainingSum],
+                        backgroundColor: ['rgb(16, 185, 129)', 'rgb(245, 158, 11)'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#d4d4d8', font: { size: 11 } } }
+                    }
+                }
+            });
         }
 
         function openPaymentModal(index) {
             const debt = debts[index];
-            const totalDebt = calculateCurrentTotal(debt);
-            const balance = Math.max(0, totalDebt - debt.paidAmount);
+            const currentTotal = calculateCurrentTotal(debt);
+            const balance = Math.max(0, currentTotal - debt.paidAmount);
 
             document.getElementById('modalIndex').value = index;
-            document.getElementById('modalBorrowerName').innerText = debt.name;
+            document.getElementById('modalBorrowerName').innerText = `${debt.name} (${formatCurrency(debt.amount)})`;
             document.getElementById('modalRemainingBalance').innerText = formatCurrency(balance);
             document.getElementById('paymentAmount').value = '';
+            document.getElementById('paymentAmount').max = balance;
             document.getElementById('autoDeductFull').checked = false;
+            document.getElementById('paymentDate').value = todayStr;
 
             const modal = document.getElementById('paymentModal');
             modal.classList.remove('hidden');
@@ -1859,8 +1888,8 @@
         function toggleAutoDeduct(checkbox) {
             const index = document.getElementById('modalIndex').value;
             const debt = debts[index];
-            const totalDebt = calculateCurrentTotal(debt);
-            const balance = Math.max(0, totalDebt - debt.paidAmount);
+            const currentTotal = calculateCurrentTotal(debt);
+            const balance = Math.max(0, currentTotal - debt.paidAmount);
 
             if (checkbox.checked) {
                 document.getElementById('paymentAmount').value = balance.toFixed(2);
@@ -1872,30 +1901,92 @@
         function handleSavePaymentForm(e) {
             e.preventDefault();
             const index = parseInt(document.getElementById('modalIndex').value);
-            const amountPaid = parseFloat(document.getElementById('paymentAmount').value);
-            const paymentDate = document.getElementById('paymentDate').value;
+            const payAmount = parseFloat(document.getElementById('paymentAmount').value);
+            const payDate = document.getElementById('paymentDate').value;
 
-            if (isNaN(amountPaid) || amountPaid <= 0) {
+            if (isNaN(payAmount) || payAmount <= 0) {
                 alert('Please enter a valid payment amount.');
                 return;
             }
 
             const debt = debts[index];
-            debt.paidAmount = (parseFloat(debt.paidAmount) || 0) + amountPaid;
-            debt.lastPaymentDate = paymentDate;
-
+            debt.paidAmount += payAmount;
+            debt.lastPaymentDate = payDate;
             if (!debt.paymentHistory) debt.paymentHistory = [];
-            debt.paymentHistory.push({ date: paymentDate, amount: amountPaid });
+            debt.paymentHistory.push({ date: payDate, amount: payAmount });
 
             triggerAutoSync('data');
             closePaymentModal();
-            alert('Payment recorded successfully!');
+            alert('Payment successfully recorded!');
+        }
+
+        let currentAmortizationDebtRef = null;
+
+        function openAmortizationModal(index) {
+            const debt = debts[index];
+            currentAmortizationDebtRef = debt;
+            document.getElementById('amortizationDebtorName').innerText = `${debt.name} (${formatCurrency(debt.amount)})`;
+            
+            const schedule = generateAmortizationSchedule(debt);
+            const tbody = document.getElementById('amortizationTableBody');
+            tbody.innerHTML = '';
+
+            if (schedule.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-zinc-500">No amortization schedule applicable.</td></tr>`;
+            } else {
+                schedule.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-zinc-800/40 transition";
+                    tr.innerHTML = `
+                        <td class="py-3 px-4 font-bold text-white">Month ${row.period}</td>
+                        <td class="py-3 px-4 text-zinc-300">${row.dueDate}</td>
+                        <td class="py-3 px-4 text-right text-zinc-200">${formatCurrency(row.principal)}</td>
+                        <td class="py-3 px-4 text-right text-rose-400">${formatCurrency(row.interest)}</td>
+                        <td class="py-3 px-4 text-right font-bold text-emerald-400">${formatCurrency(row.totalPayment)}</td>
+                        <td class="py-3 px-4 text-right font-bold text-amber-400">${formatCurrency(row.remainingBalance)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            const modal = document.getElementById('amortizationModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeAmortizationModal() {
+            const modal = document.getElementById('amortizationModal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        }
+
+        function printAmortizationSchedule() {
+            window.print();
+        }
+
+        function exportAmortizationExcel() {
+            if (!currentAmortizationDebtRef) return;
+            const schedule = generateAmortizationSchedule(currentAmortizationDebtRef);
+            
+            let dataToExport = schedule.map(item => ({
+                "Month / Period": `Month ${item.period}`,
+                "Due Date": item.dueDate,
+                "Principal (₱)": item.principal.toFixed(2),
+                "Interest (₱)": item.interest.toFixed(2),
+                "Total Payment (₱)": item.totalPayment.toFixed(2),
+                "Remaining Balance (₱)": item.remainingBalance.toFixed(2)
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Amortization");
+            XLSX.writeFile(workbook, `Amortization_${currentAmortizationDebtRef.name.replace(/\s+/g, '_')}.xlsx`);
         }
 
         function openTrackPaymentsModal(index) {
             const debt = debts[index];
-            const totalDebt = calculateCurrentTotal(debt);
-            const balance = Math.max(0, totalDebt - debt.paidAmount);
+            const currentTotal = calculateCurrentTotal(debt);
+            const balance = Math.max(0, currentTotal - debt.paidAmount);
 
             document.getElementById('trackModalDebtorName').innerText = debt.name;
             document.getElementById('trackModalTotalPaid').innerText = formatCurrency(debt.paidAmount);
@@ -1905,16 +1996,16 @@
             tbody.innerHTML = '';
 
             if (!debt.paymentHistory || debt.paymentHistory.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="2" class="text-center py-4 text-zinc-500 text-xs">No payment transaction logs found.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="2" class="text-center py-6 text-zinc-500">No payment logs recorded yet.</td></tr>`;
             } else {
                 debt.paymentHistory.forEach(log => {
-                    const row = document.createElement('tr');
-                    row.className = "hover:bg-zinc-800/40 transition";
-                    row.innerHTML = `
-                        <td class="py-2 px-3 text-zinc-300">${log.date}</td>
-                        <td class="py-2 px-3 text-right font-bold text-emerald-400">${formatCurrency(log.amount)}</td>
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-zinc-800/40 transition";
+                    tr.innerHTML = `
+                        <td class="py-2.5 px-3 text-zinc-300">${log.date}</td>
+                        <td class="py-2.5 px-3 text-right font-bold text-emerald-400">${formatCurrency(log.amount)}</td>
                     `;
-                    tbody.appendChild(row);
+                    tbody.appendChild(tr);
                 });
             }
 
@@ -1929,163 +2020,124 @@
             modal.classList.add('hidden');
         }
 
-        function updateSummary() {
-            let totalLentSum = 0;
-            let totalPaidSum = 0;
-            let totalBalanceSum = 0;
-
-            debts.forEach(debt => {
-                const totalDebt = calculateCurrentTotal(debt);
-                const balance = Math.max(0, totalDebt - debt.paidAmount);
-                totalLentSum += totalDebt;
-                totalPaidSum += parseFloat(debt.paidAmount) || 0;
-                totalBalanceSum += balance;
-            });
-
-            document.getElementById('totalLent').innerText = formatCurrency(totalLentSum);
-            document.getElementById('totalPaid').innerText = formatCurrency(totalPaidSum);
-            document.getElementById('totalBalance').innerText = formatCurrency(totalBalanceSum);
-
-            renderCharts(totalLentSum, totalPaidSum, totalBalanceSum);
-        }
-
-        function renderCharts(lent, paid, balance) {
-            const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
-            const yearlyCtx = document.getElementById('yearlyChart').getContext('2d');
-
-            if (monthlyChartInstance) monthlyChartInstance.destroy();
-            if (yearlyChartInstance) yearlyChartInstance.destroy();
-
-            monthlyChartInstance = new Chart(monthlyCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-                    datasets: [{
-                        label: 'Portfolio Overview',
-                        data: [lent, paid, balance, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        backgroundColor: '#dc2626',
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { grid: { color: '#27272a' }, ticks: { color: '#a1a1aa' } },
-                        y: { grid: { color: '#27272a' }, ticks: { color: '#a1a1aa' } }
-                    }
-                }
-            });
-
-            yearlyChartInstance = new Chart(yearlyCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Total Paid', 'Remaining Balance'],
-                    datasets: [{
-                        data: [paid, balance],
-                        backgroundColor: ['#10b981', '#f59e0b'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom', labels: { color: '#a1a1aa', boxWidth: 12 } } }
-                }
-            });
-        }
-
         function renderDebtorPortalView(debtorName) {
-            const matchedDebts = debts.filter(d => d.name.toLowerCase() === debtorName.toLowerCase());
+            const container = document.getElementById('debtorPortalContent');
             document.getElementById('debtorPortalWelcomeName').innerText = debtorName;
 
-            const container = document.getElementById('debtorPortalContent');
-            container.innerHTML = '';
-
-            if (matchedDebts.length === 0) {
+            const myDebts = debts.filter(d => d.name.toLowerCase() === debtorName.toLowerCase());
+            
+            if (myDebts.length === 0) {
                 container.innerHTML = `
-                    <div class="bg-zinc-900/70 backdrop-blur-md p-8 rounded-2xl text-center border border-zinc-800">
-                        <p class="text-zinc-400 text-sm">Walang nakitang utang o record sa ilalim ng pangalang ito.</p>
+                    <div class="bg-zinc-900/70 backdrop-blur-md p-10 rounded-2xl border border-zinc-800 text-center text-zinc-400">
+                        <i class="fa-solid fa-file-circle-check text-4xl mb-3 text-zinc-600"></i>
+                        <p class="text-sm font-semibold">No active loan records found under your name.</p>
                     </div>
                 `;
                 return;
             }
 
-            matchedDebts.forEach(debt => {
-                const totalDebt = calculateCurrentTotal(debt);
-                const balance = Math.max(0, totalDebt - debt.paidAmount);
+            let html = '';
+            myDebts.forEach((debt) => {
+                const currentTotal = calculateCurrentTotal(debt);
+                const balance = Math.max(0, currentTotal - debt.paidAmount);
+                
+                let historyRows = '';
+                if (debt.paymentHistory && debt.paymentHistory.length > 0) {
+                    debt.paymentHistory.forEach(h => {
+                        historyRows += `
+                            <div class="flex justify-between items-center py-1.5 border-b border-zinc-800/60 text-xs">
+                                <span class="text-zinc-400">${h.date}</span>
+                                <span class="font-bold text-emerald-400">${formatCurrency(h.amount)}</span>
+                            </div>
+                        `;
+                    });
+                } else {
+                    historyRows = `<p class="text-xs text-zinc-500 py-1">No payment transactions yet.</p>`;
+                }
 
-                const card = document.createElement('div');
-                card.className = "bg-zinc-900/70 backdrop-blur-md p-5 rounded-2xl shadow-lg border border-zinc-800 space-y-4";
-                card.innerHTML = `
-                    <div class="flex flex-wrap justify-between items-center gap-2 border-b border-zinc-800 pb-3">
+                html += `
+                    <div class="bg-zinc-900/70 backdrop-blur-md rounded-2xl shadow-lg border border-zinc-800 p-6 space-y-4">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-zinc-800 pb-4">
+                            <div>
+                                <span class="text-[10px] uppercase font-bold text-red-400 bg-red-950/80 border border-red-900 px-2.5 py-1 rounded-full">Loan Details</span>
+                                <h3 class="text-lg font-bold text-white mt-1.5">Principal: ${formatCurrency(debt.amount)}</h3>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs text-zinc-400 block">Due Date</span>
+                                <span class="text-sm font-bold text-amber-400">${debt.dueDate || 'N/A'}</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-zinc-950/50 p-4 rounded-xl border border-zinc-800">
+                            <div>
+                                <span class="text-zinc-400 block font-semibold">Interest Type & Rate:</span>
+                                <span class="text-zinc-200 font-bold">${debt.interestType.toUpperCase()} (${debt.interestType === 'fixed' ? formatCurrency(debt.overrideInterest) : debt.interestRate + '%'})</span>
+                            </div>
+                            <div>
+                                <span class="text-zinc-400 block font-semibold">Total w/ Interest:</span>
+                                <span class="text-rose-400 font-bold text-sm">${formatCurrency(currentTotal)}</span>
+                            </div>
+                            <div>
+                                <span class="text-zinc-400 block font-semibold">Remaining Balance:</span>
+                                <span class="text-amber-400 font-bold text-sm">${formatCurrency(balance)}</span>
+                            </div>
+                        </div>
+
                         <div>
-                            <span class="text-xs uppercase font-bold text-red-400 tracking-wider">Principal: ${formatCurrency(debt.amount)}</span>
-                            <h3 class="text-base font-bold text-white mt-0.5">Due Date: ${debt.dueDate || 'N/A'}</h3>
-                        </div>
-                        <span class="text-xs px-3 py-1 rounded-full font-bold border ${balance <= 0 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}">
-                            ${balance <= 0 ? 'Fully Paid' : 'Active Balance'}
-                        </span>
-                    </div>
-
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                        <div class="bg-zinc-950/60 p-3 rounded-xl border border-zinc-800">
-                            <span class="text-zinc-400 block">Total w/ Interest:</span>
-                            <span class="text-white font-bold text-sm">${formatCurrency(totalDebt)}</span>
-                        </div>
-                        <div class="bg-zinc-950/60 p-3 rounded-xl border border-zinc-800">
-                            <span class="text-zinc-400 block">Total Paid:</span>
-                            <span class="text-emerald-400 font-bold text-sm">${formatCurrency(debt.paidAmount)}</span>
-                        </div>
-                        <div class="bg-zinc-950/60 p-3 rounded-xl border border-zinc-800 col-span-2">
-                            <span class="text-zinc-400 block">Remaining Balance:</span>
-                            <span class="text-amber-400 font-bold text-sm">${formatCurrency(balance)}</span>
+                            <h4 class="text-xs font-bold text-zinc-300 uppercase tracking-wider mb-2">My Payment History</h4>
+                            <div class="bg-zinc-950/40 p-3.5 rounded-xl border border-zinc-800 max-h-40 overflow-y-auto">
+                                ${historyRows}
+                            </div>
                         </div>
                     </div>
                 `;
-                container.appendChild(card);
             });
+
+            container.innerHTML = html;
         }
 
+        let currentDebtorHistoryNameRef = '';
+
         function openDebtorHistoryModal() {
+            if (!currentUser || currentUser.role !== 'debtor') return;
             const debtorName = currentUser.name;
+            currentDebtorHistoryNameRef = debtorName;
             document.getElementById('debtorHistoryName').innerText = debtorName;
-            const matchedDebts = debts.filter(d => d.name.toLowerCase() === debtorName.toLowerCase());
 
-            let totalPaid = 0;
-            let totalLent = 0;
-            let totalBalance = 0;
-            let historyHTML = '';
+            const myDebts = debts.filter(d => d.name.toLowerCase() === debtorName.toLowerCase());
+            let totalP = 0;
+            let totalL = 0;
+            let totalB = 0;
+            let historyTableHTML = '';
 
-            matchedDebts.forEach(debt => {
-                const totalDebt = calculateCurrentTotal(debt);
-                const balance = Math.max(0, totalDebt - debt.paidAmount);
-                totalPaid += parseFloat(debt.paidAmount) || 0;
-                totalLent += totalDebt;
-                totalBalance += balance;
+            myDebts.forEach(debt => {
+                const currentTotal = calculateCurrentTotal(debt);
+                const balance = Math.max(0, currentTotal - debt.paidAmount);
+                totalP += debt.paidAmount;
+                totalL += currentTotal;
+                totalB += balance;
 
                 if (debt.paymentHistory && debt.paymentHistory.length > 0) {
-                    debt.paymentHistory.forEach(log => {
-                        historyHTML += `
+                    debt.paymentHistory.forEach(h => {
+                        historyTableHTML += `
                             <tr class="hover:bg-zinc-800/40 transition">
-                                <td class="py-3 px-4 text-zinc-300">${log.date}</td>
-                                <td class="py-3 px-4 text-zinc-200">Loan Principal: ${formatCurrency(debt.amount)}</td>
-                                <td class="py-3 px-4 text-right font-bold text-emerald-400">${formatCurrency(log.amount)}</td>
+                                <td class="py-3 px-4 text-zinc-300">${h.date}</td>
+                                <td class="py-3 px-4 font-bold text-white">Loan: ${formatCurrency(debt.amount)} (${debt.interestType})</td>
+                                <td class="py-3 px-4 text-right font-bold text-emerald-400">${formatCurrency(h.amount)}</td>
                             </tr>
                         `;
                     });
                 }
             });
 
-            if (!historyHTML) {
-                historyHTML = `<tr><td colspan="3" class="text-center py-6 text-zinc-500 text-xs">No payment history recorded yet.</td></tr>`;
+            if (!historyTableHTML) {
+                historyTableHTML = `<tr><td colspan="3" class="text-center py-6 text-zinc-500">No payment transaction records found.</td></tr>`;
             }
 
-            document.getElementById('debtorReportTotalPaid').innerText = formatCurrency(totalPaid);
-            document.getElementById('debtorReportTotalLent').innerText = formatCurrency(totalLent);
-            document.getElementById('debtorReportTotalBalance').innerText = formatCurrency(totalBalance);
-            document.getElementById('debtorHistoryTableBody').innerHTML = historyHTML;
+            document.getElementById('debtorReportTotalPaid').innerText = formatCurrency(totalP);
+            document.getElementById('debtorReportTotalLent').innerText = formatCurrency(totalL);
+            document.getElementById('debtorReportTotalBalance').innerText = formatCurrency(totalB);
+            document.getElementById('debtorHistoryTableBody').innerHTML = historyTableHTML;
 
             const modal = document.getElementById('debtorHistoryModal');
             modal.classList.remove('hidden');
