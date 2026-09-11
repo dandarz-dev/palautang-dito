@@ -9,8 +9,24 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Chart.js for Graphical Charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
-        /* Smooth scrolling and iOS rubber-band fix */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #09090b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #27272a;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #dc2626;
+        }
+        
         html, body {
             -webkit-text-size-adjust: 100%;
             -webkit-tap-highlight-color: transparent;
@@ -37,22 +53,159 @@
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-zinc-950 via-neutral-900 to-zinc-900 min-h-screen font-sans text-zinc-100 antialiased selection:bg-emerald-500 selection:text-white">
+<body class="bg-gradient-to-br from-zinc-950 via-zinc-900 to-red-950/30 min-h-screen font-sans text-zinc-100 antialiased selection:bg-red-600 selection:text-white">
 
-    <!-- AUTHENTICATION CONTAINER (Login / Register) -->
-    <div id="authContainer" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-neutral-900/90 backdrop-blur-xl rounded-3xl max-w-md w-full p-8 shadow-2xl border border-zinc-800 text-zinc-100">
-            <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-gradient-to-tr from-cyan-600 to-teal-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl shadow-lg shadow-cyan-900/30">
+    <!-- FLOATING BUTTONS WRAPPER (MIDDLE LEFTSIDE) -->
+    <div id="sideButtonWrapper" class="hidden fixed left-4 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-3">
+        <!-- Add New Debt Floating Button (Triggers GCash Donation Popup) -->
+        <button onclick="triggerAddDebtWithDonation()" title="Add New Debt" class="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold p-3.5 rounded-full shadow-2xl shadow-red-950/80 border border-red-400/30 flex items-center justify-center transition-all transform hover:scale-105">
+            <i class="fa-solid fa-user-plus text-lg"></i>
+        </button>
+        <!-- Floating Calculator Button -->
+        <button onclick="toggleFloatingModal('floatingCalcModal')" title="Calculator" class="bg-gradient-to-r from-zinc-800 to-zinc-900 hover:from-zinc-700 hover:to-zinc-800 text-white font-bold p-3.5 rounded-full shadow-2xl border border-zinc-700 flex items-center justify-center transition-all transform hover:scale-105">
+            <i class="fa-solid fa-calculator text-lg text-red-500"></i>
+        </button>
+        <!-- Floating File Backup & Security Button -->
+        <button onclick="toggleFloatingModal('floatingSecurityModal')" title="File Backup & Security" class="bg-gradient-to-r from-zinc-800 to-zinc-900 hover:from-zinc-700 hover:to-zinc-800 text-white font-bold p-3.5 rounded-full shadow-2xl border border-zinc-700 flex items-center justify-center transition-all transform hover:scale-105">
+            <i class="fa-solid fa-shield-halved text-lg text-amber-500"></i>
+        </button>
+    </div>
+
+    <!-- GCASH DONATION POPUP MODAL -->
+    <div id="gcashDonationModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-zinc-900/95 backdrop-blur-2xl rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-blue-500/40 text-zinc-100 text-center relative animate-fade-in">
+            <div class="w-16 h-16 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-lg">
+                <i class="fa-solid fa-heart"></i>
+            </div>
+            <h3 class="text-xl font-extrabold text-white mb-2">Support Utang Buddy</h3>
+            <p class="text-xs text-zinc-300 leading-relaxed mb-4">
+                We accept donation inorder to maintain the web app!
+            </p>
+            <div class="bg-blue-950/40 border border-blue-500/30 rounded-2xl p-3.5 mb-5 flex flex-col items-center justify-center gap-1">
+                <span class="text-[10px] uppercase font-bold text-blue-400 tracking-wider">GCASH NUMBER</span>
+                <span class="text-lg font-black text-white font-mono tracking-wider">0966 5896709</span>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="closeGcashModalAndOpenAddDebt()" class="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold py-3 rounded-xl text-xs transition shadow-lg shadow-red-950/50">
+                    Continue to Add Debt
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CENTER MODAL FOR ADDING NEW DEBT -->
+    <div id="addDebtModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-zinc-900/95 backdrop-blur-2xl rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-red-900/40 text-zinc-100 max-h-[90vh] flex flex-col justify-between relative overflow-y-auto">
+            <div>
+                <div class="flex justify-between items-center mb-4 border-b border-zinc-800 pb-3">
+                    <h2 class="text-lg font-bold flex items-center gap-2 text-white">
+                        <i class="fa-solid fa-user-plus text-red-500"></i> Add New Debt
+                    </h2>
+                    <button onclick="toggleSideDebtDrawer()" class="text-zinc-400 hover:text-white p-1 rounded-lg transition">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+
+                <form id="debtFormSide" onsubmit="handleSaveDebtForm(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-300 mb-1">Borrower Name</label>
+                        <input type="text" id="borrowerName" required class="w-full px-3.5 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="e.g. John Doe">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-300 mb-1">Amount (₱)</label>
+                        <input type="number" id="debtAmount" required min="1" step="any" class="w-full px-3.5 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="e.g. 1500">
+                    </div>
+
+                    <!-- INTEREST TYPE SELECTOR -->
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-semibold text-zinc-300">Interest Type (Scrolldown Option)</label>
+                        <select id="selectedInterestTypeSelect" onchange="handleInterestTypeDropdownChange(this.value)" class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500 font-semibold">
+                            <option value="simple">📊 Simple Interest Rate (%)</option>
+                            <option value="compound">📈 Compound Interest Rate (%)</option>
+                            <option value="diminishing">📉 Bank Type Rate Diminishing (Declining) Balance Method (%)</option>
+                            <option value="equal_payment">⚖️ Equal Payment (Amortization) Method (%)</option>
+                            <option value="fixed">💰 Fixed Interest Rate (₱)</option>
+                            <option value="none">🚫 No Interest</option>
+                        </select>
+                    </div>
+
+                    <div id="percentInterestContainer">
+                        <label id="percentLabelTitle" class="block text-xs font-semibold text-zinc-300 mb-1">Monthly Interest (%)</label>
+                        <input type="number" id="debtInterest" min="0" step="any" value="5" class="w-full px-3.5 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="e.g. 5">
+                    </div>
+
+                    <div id="fixedInterestContainer" class="hidden">
+                        <label class="block text-xs font-semibold text-zinc-300 mb-1">Fixed Monthly Interest (₱)</label>
+                        <input type="number" id="debtOverrideInterest" min="0" step="any" class="w-full px-3.5 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="e.g. Fixed ₱200 per month">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-300 mb-1">Loan Term Option</label>
+                        <select id="loanTermOption" onchange="handleTermChange()" class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500">
+                            <option value="1">1 Month</option>
+                            <option value="2">2 Months</option>
+                            <option value="3">3 Months</option>
+                            <option value="6">6 Months</option>
+                            <option value="12">1 Year (12 Months)</option>
+                            <option value="18">1.5 Years (18 Months)</option>
+                            <option value="24">2 Years (24 Months)</option>
+                            <option value="36">3 Years (36 Months)</option>
+                            <option value="48">4 Years (48 Months)</option>
+                            <option value="60">5 Years (60 Months)</option>
+                            <option value="custom">Custom (No Auto-Update)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-300 mb-1">Date Borrowed</label>
+                        <input type="date" id="debtDate" onchange="updateDueDateFromTerm()" required class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-300 mb-1">Due Date <span class="text-red-400 font-normal">(Editable)</span></label>
+                        <input type="date" id="debtDueDate" required class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500">
+                    </div>
+
+                    <div id="advanceInterestBox" class="bg-red-950/20 border border-red-900/40 p-3 rounded-xl flex items-center">
+                        <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input type="checkbox" id="advanceInterestToggle" class="w-4 h-4 text-red-600 rounded focus:ring-red-500 bg-zinc-800 border-zinc-700" checked>
+                            <span class="text-xs font-semibold text-red-300 leading-tight">Auto-Add Interest in Advance</span>
+                        </label>
+                    </div>
+
+                    <div class="flex gap-2.5 pt-2">
+                        <button type="button" onclick="toggleSideDebtDrawer()" class="w-1/3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold py-3 rounded-xl text-sm transition border border-zinc-700">
+                            Cancel
+                        </button>
+                        <button type="submit" class="w-2/3 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-semibold py-3 rounded-xl text-sm transition shadow-lg shadow-red-950/50 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-plus"></i> Save Debt
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="mt-4 pt-3 border-t border-zinc-800 text-center">
+                <p class="text-[11px] text-zinc-500">Utang Buddy • Centered Form Modal</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTHENTICATION CONTAINER -->
+    <div id="authContainer" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-zinc-900/90 backdrop-blur-xl rounded-3xl max-w-md w-full p-8 shadow-2xl border border-red-900/40 text-zinc-100 relative overflow-hidden">
+            <div class="absolute -top-12 -right-12 w-32 h-32 bg-red-600/20 rounded-full blur-2xl pointer-events-none"></div>
+            
+            <div class="text-center mb-6 relative">
+                <div class="w-16 h-16 bg-gradient-to-tr from-red-700 via-red-600 to-rose-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl shadow-lg shadow-red-950/60 ring-2 ring-red-500/30">
                     <i class="fa-solid fa-wallet"></i>
                 </div>
-                <h2 class="text-2xl font-bold tracking-tight text-white">Utang Buddy</h2>
+                <h2 class="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-1.5">
+                    Utang Buddy <span class="text-xs px-2 py-0.5 rounded-full bg-red-600/20 text-red-400 font-bold border border-red-500/30">DITO</span>
+                </h2>
                 <p id="authSubtitle" class="text-xs text-zinc-400 mt-1.5">Select your account type to log in</p>
             </div>
 
             <!-- Role Tabs -->
             <div class="flex bg-zinc-800/80 p-1 rounded-xl mb-6 border border-zinc-700/50">
-                <button type="button" id="tabAdmin" onclick="switchAuthRole('admin')" class="flex-1 py-2 text-xs font-bold rounded-lg transition bg-cyan-600 text-white shadow-md">Admin Login</button>
+                <button type="button" id="tabAdmin" onclick="switchAuthRole('admin')" class="flex-1 py-2 text-xs font-bold rounded-lg transition bg-red-600 text-white shadow-md shadow-red-950/40">Admin Login</button>
                 <button type="button" id="tabDebtor" onclick="switchAuthRole('debtor')" class="flex-1 py-2 text-xs font-bold rounded-lg transition text-zinc-400 hover:text-white">Debtor Portal</button>
             </div>
 
@@ -60,13 +213,15 @@
             <form id="adminLoginForm" onsubmit="handleAdminLogin(event)" class="space-y-4">
                 <div>
                     <label class="block text-xs font-semibold text-zinc-300 mb-1">Admin Username</label>
-                    <input type="text" id="adminUser" required class="w-full px-3.5 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition" placeholder="admin">
+                    <input type="text" id="adminUser" required class="w-full px-3.5 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition" placeholder="admin">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-zinc-300 mb-1">Password</label>
-                    <input type="password" id="adminPass" required class="w-full px-3.5 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition" placeholder="••••••••">
+                    <input type="password" id="adminPass" required class="w-full px-3.5 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition" placeholder="••••••••">
                 </div>
-                <button type="submit" class="w-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white font-medium py-3 rounded-xl text-sm transition shadow-lg shadow-cyan-900/30">Login as Admin</button>
+                <button type="submit" class="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-semibold py-3 rounded-xl text-sm transition shadow-lg shadow-red-950/50 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket"></i> Login as Admin
+                </button>
             </form>
 
             <!-- Debtor Login / Register Form -->
@@ -74,23 +229,24 @@
                 <form id="debtorLoginForm" onsubmit="handleDebtorLogin(event)" class="space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-zinc-300 mb-1">Full Name</label>
-                        <input type="text" id="debtorUsername" required class="w-full px-3.5 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition" placeholder="e.g. John Doe">
+                        <input type="text" id="debtorUsername" required class="w-full px-3.5 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition" placeholder="e.g. John Doe">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-zinc-300 mb-1">Access PIN / Password</label>
-                        <input type="password" id="debtorPassword" required class="w-full px-3.5 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition" placeholder="••••">
+                        <input type="password" id="debtorPassword" required class="w-full px-3.5 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition" placeholder="••••">
                     </div>
-                    <button type="submit" id="debtorLoginSubmitBtn" class="w-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white font-medium py-3 rounded-xl text-sm transition shadow-lg shadow-cyan-900/30">Login to Debtor Portal</button>
+                    <button type="submit" id="debtorLoginSubmitBtn" class="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-semibold py-3 rounded-xl text-sm transition shadow-lg shadow-red-950/50 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-user-check"></i> Login to Debtor Portal
+                    </button>
                 </form>
                 
                 <div class="text-center pt-2 border-t border-zinc-800">
-                    <p class="text-xs text-zinc-400">No account yet? <button onclick="toggleDebtorRegisterMode()" id="registerToggleBtn" class="text-cyan-400 font-bold hover:underline">Register here</button></p>
+                    <p class="text-xs text-zinc-400">No account yet? <button onclick="toggleDebtorRegisterMode()" id="registerToggleBtn" class="text-red-400 font-bold hover:underline">Register here</button></p>
                 </div>
             </div>
 
-            <!-- Signature Name in the Bottom of Login Container -->
             <div class="text-center mt-6 pt-4 border-t border-zinc-800/80">
-                <p class="text-[11px] text-cyan-400 font-medium">App developed by: dandarz ©2026</p>
+                <p class="text-[11px] text-red-400 font-medium">App developed by: dandarz ©2026</p>
             </div>
         </div>
     </div>
@@ -98,21 +254,59 @@
     <!-- MAIN APP CONTAINER -->
     <div id="mainAppContainer" class="hidden min-h-screen flex flex-col">
         <!-- Header -->
-        <header class="bg-gradient-to-r from-cyan-950 via-teal-950/90 to-slate-950 backdrop-blur-md border-b border-cyan-900/40 sticky top-0 z-40 py-4 px-6 shadow-md">
-            <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <header class="bg-gradient-to-r from-zinc-950 via-red-950/80 to-zinc-950 backdrop-blur-md border-b border-red-900/40 sticky top-0 z-40 shadow-xl">
+            <!-- LIVE USDT CRYPTO TRADINGVIEW TICKER TAPE -->
+            <div class="w-full bg-black/60 border-b border-red-900/30">
+                <div class="tradingview-widget-container">
+                    <div class="tradingview-widget-container__widget"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+                    {
+                    "symbols": [
+                        {
+                        "proName": "BINANCE:BTCUSDT",
+                        "title": "BTC/USDT"
+                        },
+                        {
+                        "proName": "BINANCE:ETHUSDT",
+                        "title": "ETH/USDT"
+                        },
+                        {
+                        "proName": "BINANCE:SOLUSDT",
+                        "title": "SOL/USDT"
+                        },
+                        {
+                        "proName": "BINANCE:XRPUSDT",
+                        "title": "XRP/USDT"
+                        },
+                        {
+                        "proName": "BINANCE:BNBUSDT",
+                        "title": "BNB/USDT"
+                        }
+                    ],
+                    "showSymbolLogo": true,
+                    "isTransparent": true,
+                    "displayMode": "adaptive",
+                    "colorTheme": "dark",
+                    "locale": "en"
+                    }
+                    </script>
+                </div>
+            </div>
+
+            <div class="max-w-6xl mx-auto flex justify-between items-center py-3.5 px-6">
                 <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 bg-gradient-to-br from-cyan-400 to-teal-500 text-slate-950 rounded-xl flex items-center justify-center text-base shadow-md shadow-cyan-900/40 font-extrabold">
+                    <div class="w-9 h-9 bg-gradient-to-br from-red-600 to-rose-600 text-white rounded-xl flex items-center justify-center text-base shadow-md shadow-red-950/50 font-extrabold ring-1 ring-red-400/30">
                         <i class="fa-solid fa-wallet"></i>
                     </div>
                     <div>
-                        <h1 class="text-xl md:text-2xl font-bold flex items-center gap-2.5 text-white leading-none">
-                            Utang Buddy
+                        <h1 class="text-xl md:text-2xl font-bold flex items-center gap-2 text-white leading-none">
+                            Utang Buddy <span class="text-[10px] tracking-wider uppercase font-extrabold text-red-500 bg-red-950/80 border border-red-800/50 px-2 py-0.5 rounded-full">DITO Edition</span>
                         </h1>
-                        <p class="text-[10px] text-cyan-400/90 font-medium mt-0.5">App developed by: dandarz ©2026</p>
+                        <p class="text-[10px] text-red-400/90 font-medium mt-0.5">App developed by: dandarz ©2026</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span id="currentUserBadge" class="text-xs bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 py-1.5 px-3 rounded-full font-medium hidden sm:inline-block">Role: Admin</span>
+                    <span id="currentUserBadge" class="text-xs bg-red-500/10 border border-red-500/30 text-red-300 py-1.5 px-3 rounded-full font-medium hidden sm:inline-block">Role: Admin</span>
                     <button onclick="logoutApp()" class="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-semibold py-1.5 px-3 rounded-lg transition flex items-center gap-1.5 shadow-sm">
                         <i class="fa-solid fa-right-from-bracket"></i> Logout
                     </button>
@@ -127,8 +321,8 @@
 
                 <!-- Dashboard Summary Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div class="bg-neutral-900/70 backdrop-blur-md p-5 rounded-2xl shadow-lg border border-zinc-800 flex items-center gap-4">
-                        <div class="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-3.5 rounded-xl text-xl">
+                    <div class="bg-zinc-900/70 backdrop-blur-md p-5 rounded-2xl shadow-lg border border-zinc-800 flex items-center gap-4 hover:border-red-900/50 transition">
+                        <div class="bg-red-500/10 border border-red-500/20 text-red-400 p-3.5 rounded-xl text-xl">
                             <i class="fa-solid fa-peso-sign"></i>
                         </div>
                         <div>
@@ -137,8 +331,8 @@
                         </div>
                     </div>
                     
-                    <div class="bg-neutral-900/70 backdrop-blur-md p-5 rounded-2xl shadow-lg border border-zinc-800 flex items-center gap-4">
-                        <div class="bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 p-3.5 rounded-xl text-xl">
+                    <div class="bg-zinc-900/70 backdrop-blur-md p-5 rounded-2xl shadow-lg border border-zinc-800 flex items-center gap-4 hover:border-emerald-900/50 transition">
+                        <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3.5 rounded-xl text-xl">
                             <i class="fa-solid fa-circle-check"></i>
                         </div>
                         <div>
@@ -147,7 +341,7 @@
                         </div>
                     </div>
 
-                    <div class="bg-neutral-900/70 backdrop-blur-md p-5 rounded-2xl shadow-lg border border-zinc-800 flex items-center gap-4">
+                    <div class="bg-zinc-900/70 backdrop-blur-md p-5 rounded-2xl shadow-lg border border-zinc-800 flex items-center gap-4 hover:border-amber-900/50 transition">
                         <div class="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-3.5 rounded-xl text-xl">
                             <i class="fa-solid fa-clock-rotate-left"></i>
                         </div>
@@ -158,13 +352,12 @@
                     </div>
                 </div>
 
-                <!-- GRAPHICAL CHARTS SECTION (MONTHLY & YEARLY) -->
+                <!-- GRAPHICAL CHARTS SECTION -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                    <!-- Monthly Overview Bar Chart -->
-                    <div class="bg-neutral-900/70 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-zinc-800 lg:col-span-2 flex flex-col justify-between">
+                    <div class="bg-zinc-900/70 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-zinc-800 lg:col-span-2 flex flex-col justify-between">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                                <i class="fa-solid fa-chart-column text-cyan-400"></i> Monthly Financial Overview (Current Year)
+                                <i class="fa-solid fa-chart-column text-red-500"></i> Monthly Financial Overview (Current Year)
                             </h3>
                         </div>
                         <div class="relative w-full h-64">
@@ -172,11 +365,10 @@
                         </div>
                     </div>
 
-                    <!-- Yearly Distribution Doughnut Chart -->
-                    <div class="bg-neutral-900/70 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-zinc-800 flex flex-col justify-between">
+                    <div class="bg-zinc-900/70 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-zinc-800 flex flex-col justify-between">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                                <i class="fa-solid fa-chart-pie text-cyan-400"></i> Overall Portfolio Ratio
+                                <i class="fa-solid fa-chart-pie text-red-500"></i> Overall Portfolio Ratio
                             </h3>
                         </div>
                         <div class="relative w-full h-64 flex items-center justify-center">
@@ -185,135 +377,11 @@
                     </div>
                 </div>
 
-                <!-- Grid Layout for Add Form & Calculator -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                    <!-- Add New Debt Form -->
-                    <div class="bg-neutral-900/70 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-zinc-800 lg:col-span-2">
-                        <div class="flex justify-between items-center mb-4">
-                            <h2 class="text-base font-bold flex items-center gap-2 text-white">
-                                <i class="fa-solid fa-user-plus text-cyan-400"></i> Add New Debt
-                            </h2>
-                        </div>
-                        <form id="debtForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-zinc-300 mb-1">Borrower Name</label>
-                                <input type="text" id="borrowerName" required class="w-full px-3 py-2 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="e.g. John Doe">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-zinc-300 mb-1">Amount (₱)</label>
-                                <input type="number" id="debtAmount" required min="1" step="any" class="w-full px-3 py-2 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="e.g. 1500">
-                            </div>
-
-                            <!-- INTEREST TYPE DROPDOWN / SELECTOR -->
-                            <div class="md:col-span-2 space-y-1.5">
-                                <label class="block text-xs font-semibold text-zinc-300">Interest Type (Scrolldown Option)</label>
-                                <select id="selectedInterestTypeSelect" onchange="handleInterestTypeDropdownChange(this.value)" class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 font-semibold">
-                                    <option value="simple">📊 Simple Interest Rate (%)</option>
-                                    <option value="compound">📈 Compound Interest Rate (%)</option>
-                                    <option value="diminishing">📉 Bank Type Rate Diminishing (Declining) Balance Method (%)</option>
-                                    <option value="equal_payment">⚖️ Equal Payment (Amortization) Method (%)</option>
-                                    <option value="fixed">💰 Fixed Interest Rate (₱)</option>
-                                    <option value="none">🚫 No Interest</option>
-                                </select>
-                            </div>
-
-                            <!-- PERCENT INTEREST INPUT FIELD -->
-                            <div id="percentInterestContainer">
-                                <label id="percentLabelTitle" class="block text-xs font-semibold text-zinc-300 mb-1">Monthly Interest (%)</label>
-                                <input type="number" id="debtInterest" min="0" step="any" value="5" class="w-full px-3 py-2 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="e.g. 5">
-                            </div>
-
-                            <!-- FIXED OVERRIDE INTEREST INPUT FIELD -->
-                            <div id="fixedInterestContainer" class="hidden">
-                                <label class="block text-xs font-semibold text-zinc-300 mb-1">Fixed Monthly Interest (₱)</label>
-                                <input type="number" id="debtOverrideInterest" min="0" step="any" class="w-full px-3 py-2 bg-zinc-800/80 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="e.g. Fixed ₱200 per month">
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-semibold text-zinc-300 mb-1">Loan Term Option</label>
-                                <select id="loanTermOption" onchange="handleTermChange()" class="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                                    <option value="1">1 Month</option>
-                                    <option value="2">2 Months</option>
-                                    <option value="3">3 Months</option>
-                                    <option value="6">6 Months</option>
-                                    <option value="12">1 Year (12 Months)</option>
-                                    <option value="18">1.5 Years (18 Months)</option>
-                                    <option value="24">2 Years (24 Months)</option>
-                                    <option value="36">3 Years (36 Months)</option>
-                                    <option value="48">4 Years (48 Months)</option>
-                                    <option value="60">5 Years (60 Months)</option>
-                                    <option value="custom">Custom (No Auto-Update)</option>
-                                </select>
-                            </div>
-                            
-                            <div>
-                                <label class="block text-xs font-semibold text-zinc-300 mb-1">Date Borrowed</label>
-                                <input type="date" id="debtDate" onchange="updateDueDateFromTerm()" required class="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-zinc-300 mb-1">Due Date <span class="text-cyan-400 font-normal">(Editable)</span></label>
-                                <input type="date" id="debtDueDate" required class="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                            </div>
-
-                            <!-- ADVANCE INTEREST TOGGLE & SAVE BUTTON -->
-                            <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3 items-center pt-2 border-t border-zinc-800/80 mt-1">
-                                <div id="advanceInterestBox" class="bg-cyan-950/30 border border-cyan-900/40 p-2.5 rounded-xl h-full flex items-center">
-                                    <label class="flex items-center gap-2 cursor-pointer select-none">
-                                        <input type="checkbox" id="advanceInterestToggle" class="w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500 bg-zinc-800 border-zinc-700" checked>
-                                        <span class="text-xs font-semibold text-cyan-300 leading-tight">Auto-Add Interest in Advance</span>
-                                    </label>
-                                </div>
-                                <div>
-                                    <button type="submit" class="w-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white font-medium py-2.5 px-4 rounded-xl text-sm transition shadow-lg shadow-cyan-900/30 flex items-center justify-center gap-2">
-                                        <i class="fa-solid fa-plus"></i> Save Debt
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Calculator Card -->
-                    <div class="bg-neutral-900/70 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-zinc-800 flex flex-col justify-between">
-                        <div>
-                            <h2 class="text-base font-bold mb-4 flex items-center gap-2 text-white">
-                                <i class="fa-solid fa-calculator text-cyan-400"></i> Calculator
-                            </h2>
-                            <div class="mb-3">
-                                <input type="text" id="calcScreen" readonly class="w-full px-4 py-3 bg-zinc-950 border border-zinc-700 rounded-xl text-right text-xl font-mono text-cyan-400 focus:outline-none" value="0">
-                            </div>
-                            <div class="grid grid-cols-4 gap-2">
-                                <button type="button" onclick="calcClear()" class="bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 py-2.5 rounded-xl font-bold text-xs transition">C</button>
-                                <button type="button" onclick="calcAppend('%')" class="bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">%</button>
-                                <button type="button" onclick="calcAppend('/')" class="bg-cyan-950 border border-cyan-800 text-cyan-400 hover:bg-cyan-900 py-2.5 rounded-xl font-bold text-xs transition">÷</button>
-                                <button type="button" onclick="calcAppend('*')" class="bg-cyan-950 border border-cyan-800 text-cyan-400 hover:bg-cyan-900 py-2.5 rounded-xl font-bold text-xs transition">×</button>
-
-                                <button type="button" onclick="calcAppend('7')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">7</button>
-                                <button type="button" onclick="calcAppend('8')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">8</button>
-                                <button type="button" onclick="calcAppend('9')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">9</button>
-                                <button type="button" onclick="calcAppend('-')" class="bg-cyan-950 border border-cyan-800 text-cyan-400 hover:bg-cyan-900 py-2.5 rounded-xl font-bold text-xs transition">-</button>
-
-                                <button type="button" onclick="calcAppend('4')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">4</button>
-                                <button type="button" onclick="calcAppend('5')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">5</button>
-                                <button type="button" onclick="calcAppend('6')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">6</button>
-                                <button type="button" onclick="calcAppend('+')" class="bg-cyan-950 border border-cyan-800 text-cyan-400 hover:bg-cyan-900 py-2.5 rounded-xl font-bold text-xs transition">+</button>
-
-                                <button type="button" onclick="calcAppend('1')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">1</button>
-                                <button type="button" onclick="calcAppend('2')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">2</button>
-                                <button type="button" onclick="calcAppend('3')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">3</button>
-                                <button type="button" onclick="calcCompute()" class="row-span-2 bg-gradient-to-b from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white rounded-xl font-bold text-sm transition flex items-center justify-center shadow-lg shadow-cyan-900/30">=</button>
-
-                                <button type="button" onclick="calcAppend('0')" class="col-span-2 bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">0</button>
-                                <button type="button" onclick="calcAppend('.')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">.</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- ADMIN SECTION TABS -->
-                <div class="bg-neutral-900/70 backdrop-blur-md rounded-2xl shadow-lg border border-zinc-800 overflow-hidden mb-6">
+                <div class="bg-zinc-900/70 backdrop-blur-md rounded-2xl shadow-lg border border-zinc-800 overflow-hidden mb-6">
                     <div class="p-4 border-b border-zinc-800 flex flex-wrap justify-between items-center gap-3">
                         <div class="flex gap-2">
-                            <button id="tabLedgerBtn" onclick="switchAdminSection('ledger')" class="px-4 py-2 rounded-xl text-xs font-bold transition bg-cyan-600 text-white shadow-sm">
+                            <button id="tabLedgerBtn" onclick="switchAdminSection('ledger')" class="px-4 py-2 rounded-xl text-xs font-bold transition bg-red-600 text-white shadow-sm shadow-red-950/40">
                                 <i class="fa-solid fa-book mr-1.5"></i> Debt Ledger
                             </button>
                             <button id="tabUsersBtn" onclick="switchAdminSection('users')" class="px-4 py-2 rounded-xl text-xs font-bold transition text-zinc-400 hover:text-white hover:bg-zinc-800">
@@ -321,8 +389,11 @@
                             </button>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button onclick="openNewDebtorAccountModal()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-cyan-900/20">
-                                <i class="fa-solid fa-user-plus"></i> Add Debtor Account
+                            <button onclick="triggerAddDebtWithDonation()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-red-950/30">
+                                <i class="fa-solid fa-user-plus"></i> Add New Debt
+                            </button>
+                            <button onclick="openNewDebtorAccountModal()" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                                <i class="fa-solid fa-user-gear"></i> Add Debtor Account
                             </button>
                             <span id="recordCount" class="text-xs bg-zinc-800 text-zinc-300 px-3 py-1.5 rounded-xl font-medium border border-zinc-700">0 records</span>
                         </div>
@@ -330,9 +401,9 @@
 
                     <!-- Debt Ledger Table -->
                     <div id="ledgerSection" class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse min-w-[1100px]">
+                        <table class="w-full text-left border-collapse min-w-[1000px]">
                             <thead>
-                                <tr class="bg-zinc-950/50 text-zinc-400 text-xs uppercase tracking-wider border-b border-zinc-800">
+                                <tr class="bg-zinc-950/60 text-zinc-400 text-xs uppercase tracking-wider border-b border-zinc-800">
                                     <th class="py-3.5 px-4 font-semibold">Debtor Name</th>
                                     <th class="py-3.5 px-4 font-semibold">Principal</th>
                                     <th class="py-3.5 px-4 font-semibold">Interest Type & Rate</th>
@@ -342,7 +413,7 @@
                                     <th class="py-3.5 px-4 font-semibold">Date Borrowed</th>
                                     <th class="py-3.5 px-4 font-semibold">Due Date</th>
                                     <th class="py-3.5 px-4 font-semibold">Last Payment</th>
-                                    <th class="py-3.5 px-4 font-semibold text-center">Action / Options</th>
+                                    <th class="py-3.5 px-4 font-semibold text-center">Action / Option</th>
                                 </tr>
                             </thead>
                             <tbody id="debtTableBody" class="divide-y divide-zinc-800/65 text-sm text-zinc-200"></tbody>
@@ -353,7 +424,7 @@
                     <div id="usersSection" class="hidden overflow-x-auto p-4">
                         <table class="w-full text-left border-collapse min-w-[500px]">
                             <thead>
-                                <tr class="bg-zinc-950/50 text-zinc-400 text-xs uppercase tracking-wider border-b border-zinc-800">
+                                <tr class="bg-zinc-950/60 text-zinc-400 text-xs uppercase tracking-wider border-b border-zinc-800">
                                     <th class="py-3.5 px-4 font-semibold">Debtor Full Name</th>
                                     <th class="py-3.5 px-4 font-semibold">Password / PIN</th>
                                     <th class="py-3.5 px-4 font-semibold text-center">Actions</th>
@@ -364,37 +435,14 @@
                     </div>
                 </div>
 
-                <!-- PC LOCAL BACKUP / FILE GENERATOR & ADMIN PASSWORD BAR -->
-                <div class="bg-gradient-to-r from-cyan-950/60 to-neutral-900 border border-cyan-500/30 p-5 rounded-2xl shadow-lg mb-6 text-center">
-                    <div class="max-w-xl mx-auto mb-4">
-                        <h3 class="text-sm font-bold text-white flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-shield-halved text-cyan-400"></i> File Backup & Admin Security Settings
-                        </h3>
-                        <p class="text-[11px] text-zinc-400 mt-0.5">I-download o i-restore ang file backup sa PC, o palitan ang iyong admin password dito.</p>
-                    </div>
-                    
-                    <div class="flex flex-wrap justify-center items-center gap-3">
-                        <button onclick="exportLocalStorageFile()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-cyan-900/30">
-                            <i class="fa-solid fa-download"></i> Save File (Backup)
-                        </button>
-                        <label class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-sm">
-                            <i class="fa-solid fa-upload"></i> Restore File
-                            <input type="file" id="importFileBtn" accept=".json" onchange="importLocalStorageFile(event)" class="hidden">
-                        </label>
-                        <button onclick="openChangeAdminPassModal()" class="bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
-                            <i class="fa-solid fa-key"></i> Change Admin Password
-                        </button>
-                    </div>
-                </div>
-
             </div>
 
             <!-- DEBTOR VIEW WRAPPER -->
             <div id="debtorDashboardView" class="hidden space-y-6">
-                <div class="bg-neutral-900/70 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-zinc-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div class="bg-zinc-900/70 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-zinc-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h2 class="text-xl font-bold text-white mb-1 flex items-center gap-2">
-                            <i class="fa-solid fa-file-invoice-dollar text-cyan-400"></i> My Debtor Portal
+                            <i class="fa-solid fa-file-invoice-dollar text-red-500"></i> My Debtor Portal
                         </h2>
                         <p class="text-xs text-zinc-400">Welcome back, <span id="debtorPortalWelcomeName" class="font-bold text-zinc-200"></span></p>
                     </div>
@@ -402,7 +450,7 @@
                         <button onclick="openDebtorHistoryModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/30 text-xs font-semibold py-2 px-3.5 rounded-xl transition flex items-center gap-1.5 shadow-sm shadow-emerald-900/30">
                             <i class="fa-solid fa-file-lines"></i> History & Reports
                         </button>
-                        <button onclick="openSelfEditModal()" class="bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-semibold py-2 px-3.5 rounded-xl transition flex items-center gap-1.5">
+                        <button onclick="openSelfEditModal()" class="bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 text-xs font-semibold py-2 px-3.5 rounded-xl transition flex items-center gap-1.5">
                             <i class="fa-solid fa-user-pen"></i> Edit My Profile / PIN
                         </button>
                     </div>
@@ -413,9 +461,77 @@
         </main>
     </div>
 
-    <!-- DEBTOR PAYMENTS HISTORY & REPORT MODAL -->
+    <!-- FLOATING CALCULATOR MODAL -->
+    <div id="floatingCalcModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="bg-zinc-900/90 backdrop-blur-md p-6 rounded-2xl shadow-2xl border border-zinc-800 max-w-sm w-full relative">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-base font-bold flex items-center gap-2 text-white">
+                    <i class="fa-solid fa-calculator text-red-500"></i> Calculator
+                </h2>
+                <button onclick="toggleFloatingModal('floatingCalcModal')" class="text-zinc-400 hover:text-white p-1 rounded-lg transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="mb-3">
+                <input type="text" id="calcScreen" readonly class="w-full px-4 py-3 bg-zinc-950 border border-zinc-700 rounded-xl text-right text-xl font-mono text-red-400 focus:outline-none" value="0">
+            </div>
+            <div class="grid grid-cols-4 gap-2">
+                <button type="button" onclick="calcClear()" class="bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 py-2.5 rounded-xl font-bold text-xs transition">C</button>
+                <button type="button" onclick="calcAppend('%')" class="bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">%</button>
+                <button type="button" onclick="calcAppend('/')" class="bg-red-950 border border-red-800 text-red-400 hover:bg-red-900 py-2.5 rounded-xl font-bold text-xs transition">÷</button>
+                <button type="button" onclick="calcAppend('*')" class="bg-red-950 border border-red-800 text-red-400 hover:bg-red-900 py-2.5 rounded-xl font-bold text-xs transition">×</button>
+
+                <button type="button" onclick="calcAppend('7')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">7</button>
+                <button type="button" onclick="calcAppend('8')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">8</button>
+                <button type="button" onclick="calcAppend('9')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">9</button>
+                <button type="button" onclick="calcAppend('-')" class="bg-red-950 border border-red-800 text-red-400 hover:bg-red-900 py-2.5 rounded-xl font-bold text-xs transition">-</button>
+
+                <button type="button" onclick="calcAppend('4')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">4</button>
+                <button type="button" onclick="calcAppend('5')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">5</button>
+                <button type="button" onclick="calcAppend('6')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">6</button>
+                <button type="button" onclick="calcAppend('+')" class="bg-red-950 border border-red-800 text-red-400 hover:bg-red-900 py-2.5 rounded-xl font-bold text-xs transition">+</button>
+
+                <button type="button" onclick="calcAppend('1')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">1</button>
+                <button type="button" onclick="calcAppend('2')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">2</button>
+                <button type="button" onclick="calcAppend('3')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">3</button>
+                <button type="button" onclick="calcCompute()" class="row-span-2 bg-gradient-to-b from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white rounded-xl font-bold text-sm transition flex items-center justify-center shadow-lg shadow-red-950/40">=</button>
+
+                <button type="button" onclick="calcAppend('0')" class="col-span-2 bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">0</button>
+                <button type="button" onclick="calcAppend('.')" class="bg-zinc-800 border border-zinc-700 text-white hover:bg-zinc-700 py-2.5 rounded-xl font-bold text-xs transition">.</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FLOATING FILE BACKUP & SECURITY MODAL -->
+    <div id="floatingSecurityModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="bg-zinc-900/90 backdrop-blur-md border border-red-500/30 p-6 rounded-2xl shadow-2xl max-w-md w-full relative">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-shield-halved text-amber-500"></i> File Backup & Security Settings
+                </h3>
+                <button onclick="toggleFloatingModal('floatingSecurityModal')" class="text-zinc-400 hover:text-white p-1 rounded-lg transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <p class="text-xs text-zinc-400 mb-6">I-download o i-restore ang file backup sa PC, o palitan ang iyong admin password dito.</p>
+            <div class="flex flex-col gap-3">
+                <button onclick="exportLocalStorageFile()" class="w-full bg-red-600 hover:bg-red-500 text-white px-3.5 py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 shadow-sm shadow-red-950/30">
+                    <i class="fa-solid fa-download"></i> Save File (Backup)
+                </button>
+                <label class="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer shadow-sm">
+                    <i class="fa-solid fa-upload"></i> Restore File
+                    <input type="file" id="importFileBtn" accept=".json" onchange="importLocalStorageFile(event)" class="hidden">
+                </label>
+                <button onclick="openChangeAdminPassModal()" class="w-full bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-key"></i> Change Admin Password
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DEBTOR HISTORY & REPORT MODAL -->
     <div id="debtorHistoryModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center p-4 z-50 overflow-y-auto">
-        <div id="debtorHistoryModalContent" class="bg-neutral-900 rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-emerald-500/40 text-zinc-100 max-h-[90vh] flex flex-col">
+        <div id="debtorHistoryModalContent" class="bg-zinc-900 rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-emerald-500/40 text-zinc-100 max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-4 border-b border-zinc-800 pb-3">
                 <div>
                     <h3 class="text-lg font-bold text-white flex items-center gap-2">
@@ -429,13 +545,12 @@
             <div class="flex flex-wrap items-center justify-between gap-3 mb-4 bg-zinc-950/60 p-3 rounded-xl border border-zinc-800 no-print">
                 <span class="text-xs font-semibold text-zinc-300">Report Actions:</span>
                 <div class="flex items-center gap-2">
-                    <button onclick="printDebtorHistoryReport()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                    <button onclick="printDebtorHistoryReport()" class="bg-red-600 hover:bg-red-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-red-950/30">
                         <i class="fa-solid fa-print"></i> Print / Save PDF
                     </button>
                 </div>
             </div>
 
-            <!-- Summary Bar -->
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4 bg-zinc-950/40 p-3 rounded-xl border border-zinc-800 text-xs">
                 <div>
                     <span class="text-zinc-400 block font-semibold">Total Payments Made:</span>
@@ -474,26 +589,25 @@
 
     <!-- MONTHLY AMORTIZATION SCHEDULE MODAL -->
     <div id="amortizationModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center p-4 z-50 overflow-y-auto">
-        <div id="amortizationModalContent" class="bg-neutral-900 rounded-3xl max-w-4xl w-full p-6 shadow-2xl border border-cyan-500/40 text-zinc-100 max-h-[90vh] flex flex-col">
+        <div id="amortizationModalContent" class="bg-zinc-900 rounded-3xl max-w-4xl w-full p-6 shadow-2xl border border-red-500/40 text-zinc-100 max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-4 border-b border-zinc-800 pb-3">
                 <div>
                     <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <i class="fa-solid fa-calendar-days text-cyan-400"></i> Monthly Amortization Schedule: <span id="amortizationDebtorName" class="text-cyan-300"></span>
+                        <i class="fa-solid fa-calendar-days text-red-500"></i> Monthly Amortization Schedule: <span id="amortizationDebtorName" class="text-red-300"></span>
                     </h3>
                     <p class="text-xs text-zinc-400 mt-0.5">Detailed monthly breakdown of principal, interest, remaining balance, and due dates.</p>
                 </div>
                 <button onclick="closeAmortizationModal()" class="text-zinc-400 hover:text-white no-print"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
 
-            <!-- Export / Print Actions Right at the Top -->
             <div class="flex flex-wrap items-center justify-between gap-3 mb-4 bg-zinc-950/60 p-3 rounded-xl border border-zinc-800 no-print">
                 <span class="text-xs font-semibold text-zinc-300">Export Options:</span>
                 <div class="flex items-center gap-2">
-                    <button onclick="printAmortizationSchedule()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                    <button onclick="printAmortizationSchedule()" class="bg-red-600 hover:bg-red-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-red-950/30">
                         <i class="fa-solid fa-print"></i> Print Schedule
                     </button>
-                    <button onclick="exportAmortizationDocx()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
-                        <i class="fa-solid fa-file-word"></i> Save as DOCX
+                    <button onclick="exportAmortizationExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-emerald-950/30">
+                        <i class="fa-solid fa-file-excel"></i> Save as Excel (.xlsx)
                     </button>
                 </div>
             </div>
@@ -514,14 +628,13 @@
                 </table>
             </div>
 
-            <!-- Export Actions Right at the Bottom as well -->
             <div class="flex justify-between items-center pt-2 border-t border-zinc-800 no-print">
                 <button onclick="printAmortizationSchedule()" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2.5 rounded-xl text-xs font-medium transition border border-zinc-700 flex items-center gap-1.5">
                     <i class="fa-solid fa-print"></i> Print
                 </button>
                 <div class="flex gap-2">
-                    <button onclick="exportAmortizationDocx()" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
-                        <i class="fa-solid fa-file-word"></i> Save as DOCX
+                    <button onclick="exportAmortizationExcel()" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-excel"></i> Save as Excel (.xlsx)
                     </button>
                     <button type="button" onclick="closeAmortizationModal()" class="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium rounded-xl text-xs transition border border-zinc-700">
                         Close
@@ -533,7 +646,7 @@
 
     <!-- CHANGE ADMIN PASSWORD MODAL -->
     <div id="changeAdminPassModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50 overflow-y-auto">
-        <div class="bg-neutral-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-zinc-800 text-zinc-100">
+        <div class="bg-zinc-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-zinc-800 text-zinc-100">
             <h3 class="text-lg font-bold mb-4 text-white flex items-center gap-2">
                 <i class="fa-solid fa-key text-amber-400"></i> Change Admin Password
             </h3>
@@ -560,12 +673,12 @@
         </div>
     </div>
 
-    <!-- TRACK PAYMENTS MODAL (ADMIN VIEW) -->
+    <!-- TRACK PAYMENTS MODAL -->
     <div id="trackPaymentsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50 overflow-y-auto">
-        <div class="bg-neutral-900 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-cyan-500/35 text-zinc-100">
+        <div class="bg-zinc-900 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-red-500/35 text-zinc-100">
             <div class="flex justify-between items-center mb-4 border-b border-zinc-800 pb-3">
                 <h3 class="text-base font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-clock-rotate-left text-cyan-400"></i> Track Payments History: <span id="trackModalDebtorName" class="text-cyan-300"></span>
+                    <i class="fa-solid fa-clock-rotate-left text-red-500"></i> Track Payments History: <span id="trackModalDebtorName" class="text-red-300"></span>
                 </h3>
                 <button onclick="closeTrackPaymentsModal()" class="text-zinc-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
@@ -587,7 +700,7 @@
                     <div class="bg-zinc-950/40 rounded-xl border border-zinc-800 overflow-hidden max-h-60 overflow-y-auto">
                         <table class="w-full text-left">
                             <thead>
-                                <tr class="bg-neutral-900 text-zinc-400 text-[10px] uppercase border-b border-zinc-800 sticky top-0">
+                                <tr class="bg-zinc-900 text-zinc-400 text-[10px] uppercase border-b border-zinc-800 sticky top-0">
                                     <th class="py-2.5 px-3 font-semibold">Payment Date</th>
                                     <th class="py-2.5 px-3 font-semibold text-right">Amount Paid</th>
                                 </tr>
@@ -606,7 +719,7 @@
 
     <!-- DUE DATE ALERT MODAL -->
     <div id="dueDateAlertModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center p-4 z-50 overflow-y-auto">
-        <div class="bg-neutral-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-amber-500/40 text-zinc-100 transform transition-all">
+        <div class="bg-zinc-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-amber-500/40 text-zinc-100 transform transition-all">
             <div class="text-center mb-4">
                 <div class="w-14 h-14 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner">
                     <i class="fa-solid fa-triangle-exclamation"></i>
@@ -617,101 +730,101 @@
             
             <div id="dueDateAlertDetails" class="space-y-2 mb-5 max-h-60 overflow-y-auto pr-1"></div>
 
-            <button type="button" onclick="closeDueDateAlertModal()" class="w-full bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white font-medium py-3 rounded-xl text-sm transition shadow-lg shadow-amber-900/20">
+            <button type="button" onclick="closeDueDateAlertModal()" class="w-full bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white font-medium py-3 rounded-xl text-sm transition shadow-lg shadow-amber-950/40">
                 I Understand
             </button>
         </div>
     </div>
 
-    <!-- Payment Modal -->
+    <!-- PAYMENT MODAL -->
     <div id="paymentModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50 overflow-y-auto">
-        <div class="bg-neutral-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-zinc-800 text-zinc-100">
+        <div class="bg-zinc-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-zinc-800 text-zinc-100">
             <h3 class="text-lg font-bold mb-4 text-white flex items-center gap-2">
-                <i class="fa-solid fa-money-bill-wave text-cyan-400"></i> Record Payment
+                <i class="fa-solid fa-money-bill-wave text-red-500"></i> Record Payment
             </h3>
-            <form id="paymentForm">
+            <form id="paymentForm" onsubmit="handleSavePaymentForm(event)">
                 <input type="hidden" id="modalIndex">
                 <div class="mb-4 space-y-2">
                     <label class="block text-xs font-semibold text-zinc-300">Name: <span id="modalBorrowerName" class="font-bold text-white"></span></label>
-                    <p class="text-xs text-zinc-400">Remaining Balance: <span id="modalRemainingBalance" class="font-bold text-cyan-400"></span></p>
+                    <p class="text-xs text-zinc-400">Remaining Balance: <span id="modalRemainingBalance" class="font-bold text-red-400"></span></p>
                     
                     <div>
                         <label class="block text-xs font-semibold text-zinc-300 mb-1 mt-3">Payment Amount (₱)</label>
-                        <input type="number" id="paymentAmount" required min="1" step="any" class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Enter amount">
+                        <input type="number" id="paymentAmount" required min="1" step="any" class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Enter amount">
                     </div>
                 </div>
                 <div class="mb-4">
                     <label class="block text-xs font-semibold text-zinc-300 mb-1">Payment Date</label>
-                    <input type="date" id="paymentDate" required class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <input type="date" id="paymentDate" required class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500">
                 </div>
-                <div class="mb-5 bg-cyan-950/30 border border-cyan-900/40 p-3.5 rounded-xl">
+                <div class="mb-5 bg-red-950/20 border border-red-900/40 p-3.5 rounded-xl">
                     <label class="flex items-center gap-2.5 cursor-pointer">
-                        <input type="checkbox" id="autoDeductFull" onchange="toggleAutoDeduct(this)" class="w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500 bg-zinc-800 border-zinc-700">
-                        <span class="text-xs font-semibold text-cyan-300">Auto-Deduct (Pay off full remaining balance)</span>
+                        <input type="checkbox" id="autoDeductFull" onchange="toggleAutoDeduct(this)" class="w-4 h-4 text-red-600 rounded focus:ring-red-500 bg-zinc-800 border-zinc-700">
+                        <span class="text-xs font-semibold text-red-300">Auto-Deduct (Pay off full remaining balance)</span>
                     </label>
                 </div>
                 <div class="flex justify-end gap-2.5">
                     <button type="button" onclick="closePaymentModal()" class="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-sm font-medium transition border border-zinc-700">Cancel</button>
-                    <button type="submit" class="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-sm font-medium transition shadow-lg shadow-cyan-900/20">Save Payment</button>
+                    <button type="submit" class="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-medium transition shadow-lg shadow-red-950/40">Save Payment</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Edit/Add Debtor Account Modal (Admin Mode) -->
+    <!-- EDIT/ADD DEBTOR ACCOUNT MODAL -->
     <div id="editDebtorAccountModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50 overflow-y-auto">
-        <div class="bg-neutral-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-zinc-800 text-zinc-100">
+        <div class="bg-zinc-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-zinc-800 text-zinc-100">
             <h3 id="debtorModalTitle" class="text-lg font-bold mb-4 text-white flex items-center gap-2">
-                <i class="fa-solid fa-user-gear text-cyan-400"></i> Edit Debtor Login Details
+                <i class="fa-solid fa-user-gear text-red-500"></i> Edit Debtor Login Details
             </h3>
             <form id="editDebtorAccountForm" onsubmit="handleSaveDebtorAccount(event)">
                 <input type="hidden" id="editDebtorAccountIndex" value="-1">
                 <div class="space-y-3 mb-4">
                     <div>
                         <label class="block text-xs font-semibold text-zinc-300 mb-1">Full Name</label>
-                        <input type="text" id="editDebtorFullName" required class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                        <input type="text" id="editDebtorFullName" required class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-zinc-300 mb-1">Password / PIN</label>
-                        <input type="text" id="editDebtorPass" required class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="e.g. 1234">
+                        <input type="text" id="editDebtorPass" required class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="e.g. 1234">
                     </div>
                 </div>
                 <div class="flex justify-end gap-2.5">
                     <button type="button" onclick="closeEditDebtorAccountModal()" class="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-sm font-medium transition border border-zinc-700">Cancel</button>
-                    <button type="submit" class="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-sm font-medium transition shadow-lg shadow-cyan-900/20">Save Account</button>
+                    <button type="submit" class="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-medium transition shadow-lg shadow-red-950/40">Save Account</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Debtor Self Profile Edit Modal -->
+    <!-- DEBTOR SELF PROFILE EDIT MODAL -->
     <div id="debtorSelfEditModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50 overflow-y-auto">
-        <div class="bg-neutral-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-zinc-800 text-zinc-100">
+        <div class="bg-zinc-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-zinc-800 text-zinc-100">
             <h3 class="text-lg font-bold mb-4 text-white flex items-center gap-2">
-                <i class="fa-solid fa-user-pen text-cyan-400"></i> Update My Profile Info
+                <i class="fa-solid fa-user-pen text-red-500"></i> Update My Profile Info
             </h3>
             <form id="debtorSelfEditForm" onsubmit="handleDebtorSelfUpdate(event)">
                 <div class="space-y-3 mb-4">
                     <div>
                         <label class="block text-xs font-semibold text-zinc-300 mb-1">My Full Name</label>
-                        <input type="text" id="selfDebtorName" required class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                        <input type="text" id="selfDebtorName" required class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-zinc-300 mb-1">New Password / PIN</label>
-                        <input type="password" id="selfDebtorPass" required class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                        <input type="password" id="selfDebtorPass" required class="w-full px-3.5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500">
                     </div>
                 </div>
                 <div class="flex justify-end gap-2.5">
                     <button type="button" onclick="closeSelfEditModal()" class="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-sm font-medium transition border border-zinc-700">Cancel</button>
-                    <button type="submit" class="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-sm font-medium transition shadow-lg shadow-cyan-900/20">Save Profile</button>
+                    <button type="submit" class="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-medium transition shadow-lg shadow-red-950/40">Save Profile</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- DELETE 2-STEP VERIFICATION MODAL -->
+    <!-- DELETE VERIFICATION MODAL -->
     <div id="deleteVerifyModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50 overflow-y-auto">
-        <div class="bg-neutral-900 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-rose-500/40 text-zinc-100">
+        <div class="bg-zinc-900 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-rose-500/40 text-zinc-100">
             <div class="text-center mb-4">
                 <div class="w-12 h-12 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-2xl flex items-center justify-center mx-auto mb-2 text-xl">
                     <i class="fa-solid fa-shield-halved"></i>
@@ -745,7 +858,44 @@
         let monthlyChartInstance = null;
         let yearlyChartInstance = null;
 
-        // REAL-TIME AUTO-SYNC LISTENER
+        // GCASH DONATION POPUP & TRIGGER LOGIC
+        function triggerAddDebtWithDonation() {
+            const donationModal = document.getElementById('gcashDonationModal');
+            donationModal.classList.remove('hidden');
+            donationModal.classList.add('flex');
+        }
+
+        function closeGcashModalAndOpenAddDebt() {
+            const donationModal = document.getElementById('gcashDonationModal');
+            donationModal.classList.remove('flex');
+            donationModal.classList.add('hidden');
+            toggleSideDebtDrawer();
+        }
+
+        // TOGGLE FLOATING MODALS
+        function toggleFloatingModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            }
+        }
+
+        // TOGGLE CENTER DEBT MODAL
+        function toggleSideDebtDrawer() {
+            const modal = document.getElementById('addDebtModal');
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            }
+        }
+
         window.addEventListener('storage', (event) => {
             if (event.key === 'utang_buddy_data') {
                 debts = JSON.parse(event.newValue) || [];
@@ -766,6 +916,10 @@
                 localStorage.setItem('utang_buddy_users', JSON.stringify(debtorAccounts));
             }
             refreshCurrentView();
+        }
+
+        function formatCurrency(val) {
+            return '₱' + (parseFloat(val) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
         // CALCULATOR LOGIC
@@ -795,7 +949,7 @@
             }
         }
 
-        // --- LOCAL STORAGE FILE BACKUP (EXPORT & IMPORT) ---
+        // BACKUP & RESTORE
         function exportLocalStorageFile() {
             const backupData = {
                 utang_buddy_data: debts,
@@ -845,7 +999,7 @@
             event.target.value = '';
         }
 
-        // --- CHANGE ADMIN PASSWORD FUNCTIONS ---
+        // ADMIN PASS MODAL
         function openChangeAdminPassModal() {
             document.getElementById('currentAdminInput').value = '';
             document.getElementById('newAdminInput').value = '';
@@ -913,18 +1067,16 @@
                 triggerAutoSync('users');
             }
         }
-        syncDebtorAccountsWithLedger();
 
         const todayStr = new Date().toISOString().split('T')[0];
-        document.getElementById('debtDate').value = todayStr;
-        document.getElementById('paymentDate').value = todayStr;
-        updateDueDateFromTerm();
-
-        const debtForm = document.getElementById('debtForm');
-        const paymentForm = document.getElementById('paymentForm');
-        const debtTableBody = document.getElementById('debtTableBody');
 
         window.addEventListener('DOMContentLoaded', () => {
+            const debtDateInput = document.getElementById('debtDate');
+            const paymentDateInput = document.getElementById('paymentDate');
+            if (debtDateInput) debtDateInput.value = todayStr;
+            if (paymentDateInput) paymentDateInput.value = todayStr;
+            updateDueDateFromTerm();
+
             if (currentUser) {
                 applyUserSession();
             }
@@ -983,13 +1135,13 @@
             const subtitle = document.getElementById('authSubtitle');
 
             if (role === 'admin') {
-                tabAdmin.className = "flex-1 py-2 text-xs font-bold rounded-lg transition bg-cyan-600 text-white shadow-md";
+                tabAdmin.className = "flex-1 py-2 text-xs font-bold rounded-lg transition bg-red-600 text-white shadow-md shadow-red-950/40";
                 tabDebtor.className = "flex-1 py-2 text-xs font-bold rounded-lg transition text-zinc-400 hover:text-white";
                 adminForm.classList.remove('hidden');
                 debtorSection.classList.add('hidden');
                 subtitle.innerText = "Log in as Administrator";
             } else {
-                tabDebtor.className = "flex-1 py-2 text-xs font-bold rounded-lg transition bg-cyan-600 text-white shadow-md";
+                tabDebtor.className = "flex-1 py-2 text-xs font-bold rounded-lg transition bg-red-600 text-white shadow-md shadow-red-950/40";
                 tabAdmin.className = "flex-1 py-2 text-xs font-bold rounded-lg transition text-zinc-400 hover:text-white";
                 adminForm.classList.add('hidden');
                 debtorSection.classList.remove('hidden');
@@ -1060,6 +1212,7 @@
             localStorage.removeItem('utang_buddy_session');
             document.getElementById('authContainer').classList.remove('hidden');
             document.getElementById('mainAppContainer').classList.add('hidden');
+            document.getElementById('sideButtonWrapper').classList.add('hidden');
         }
 
         function applyUserSession() {
@@ -1070,12 +1223,14 @@
             if (currentUser.role === 'admin') {
                 document.getElementById('adminDashboardView').classList.remove('hidden');
                 document.getElementById('debtorDashboardView').classList.add('hidden');
+                document.getElementById('sideButtonWrapper').classList.remove('hidden');
                 renderTable();
                 renderDebtorAccountsTable();
                 updateSummary();
             } else {
                 document.getElementById('adminDashboardView').classList.add('hidden');
                 document.getElementById('debtorDashboardView').classList.remove('hidden');
+                document.getElementById('sideButtonWrapper').classList.add('hidden');
                 renderDebtorPortalView(currentUser.name);
                 checkAndTriggerDebtorDueDateAlert(currentUser.name);
             }
@@ -1149,12 +1304,12 @@
             const usersSection = document.getElementById('usersSection');
 
             if (section === 'ledger') {
-                tabLedgerBtn.className = "px-4 py-2 rounded-xl text-xs font-bold transition bg-cyan-600 text-white shadow-sm";
+                tabLedgerBtn.className = "px-4 py-2 rounded-xl text-xs font-bold transition bg-red-600 text-white shadow-sm shadow-red-950/40";
                 tabUsersBtn.className = "px-4 py-2 rounded-xl text-xs font-bold transition text-zinc-400 hover:text-white hover:bg-zinc-800";
                 ledgerSection.classList.remove('hidden');
                 usersSection.classList.add('hidden');
             } else {
-                tabUsersBtn.className = "px-4 py-2 rounded-xl text-xs font-bold transition bg-cyan-600 text-white shadow-sm";
+                tabUsersBtn.className = "px-4 py-2 rounded-xl text-xs font-bold transition bg-red-600 text-white shadow-sm shadow-red-950/40";
                 tabLedgerBtn.className = "px-4 py-2 rounded-xl text-xs font-bold transition text-zinc-400 hover:text-white hover:bg-zinc-800";
                 usersSection.classList.remove('hidden');
                 ledgerSection.classList.add('hidden');
@@ -1180,7 +1335,7 @@
                     <td class="py-3.5 px-4 text-zinc-300 font-mono text-xs">${acc.password}</td>
                     <td class="py-3.5 px-4 text-center">
                         <div class="flex items-center justify-center gap-2">
-                            <button onclick="openEditDebtorAccountModal(${index})" class="bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 px-3.5 py-2 rounded-xl text-xs font-semibold transition">
+                            <button onclick="openEditDebtorAccountModal(${index})" class="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-300 px-3.5 py-2 rounded-xl text-xs font-semibold transition">
                                 <i class="fa-solid fa-pen mr-1"></i> Edit
                             </button>
                             <button onclick="deleteDebtorAccount(${index})" class="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 px-3.5 py-2 rounded-xl text-xs font-semibold transition">
@@ -1195,7 +1350,7 @@
 
         function openNewDebtorAccountModal() {
             document.getElementById('editDebtorAccountIndex').value = "-1";
-            document.getElementById('debtorModalTitle').innerHTML = `<i class="fa-solid fa-user-plus text-cyan-400"></i> Add New Debtor Account`;
+            document.getElementById('debtorModalTitle').innerHTML = `<i class="fa-solid fa-user-plus text-red-500"></i> Add New Debtor Account`;
             document.getElementById('editDebtorFullName').value = '';
             document.getElementById('editDebtorPass').value = '1234';
             document.getElementById('editDebtorAccountModal').classList.remove('hidden');
@@ -1205,7 +1360,7 @@
         function openEditDebtorAccountModal(index) {
             const acc = debtorAccounts[index];
             document.getElementById('editDebtorAccountIndex').value = index;
-            document.getElementById('debtorModalTitle').innerHTML = `<i class="fa-solid fa-user-gear text-cyan-400"></i> Edit Debtor Login Details`;
+            document.getElementById('debtorModalTitle').innerHTML = `<i class="fa-solid fa-user-gear text-red-500"></i> Edit Debtor Login Details`;
             document.getElementById('editDebtorFullName').value = acc.name;
             document.getElementById('editDebtorPass').value = acc.password;
             document.getElementById('editDebtorAccountModal').classList.remove('hidden');
@@ -1251,8 +1406,6 @@
             closeEditDebtorAccountModal();
         }
 
-        let pendingDeleteData = { type: null, index: null };
-
         function promptDeleteVerification(type, index) {
             document.getElementById('deleteTargetType').value = type;
             document.getElementById('deleteTargetIndex').value = index;
@@ -1297,6 +1450,10 @@
 
         function deleteDebtorAccount(index) {
             promptDeleteVerification('user', index);
+        }
+
+        function deleteDebt(index) {
+            promptDeleteVerification('debt', index);
         }
 
         function openSelfEditModal() {
@@ -1365,321 +1522,510 @@
             }
         }
 
+        // ACCURATE REVISED INTEREST & CALCULATION ENGINE
         function calculateCurrentTotal(debt) {
-            const dueDate = new Date(debt.dueDate);
-            dueDate.setHours(0, 0, 0, 0);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const type = debt.interestType || 'simple';
+            const principal = parseFloat(debt.amount) || 0;
+            const rate = parseFloat(debt.interestRate) || 0;
+            const overrideInterest = parseFloat(debt.overrideInterest) || 0;
+            const termMonths = debt.termOption === 'custom' ? 12 : (parseInt(debt.termOption) || 1);
+            const advanceAdded = debt.advanceInterest !== false;
 
             const borrowDate = new Date(debt.date);
-            let yearsDiff = today.getFullYear() - borrowDate.getFullYear();
-            let monthsDiff = today.getMonth() - borrowDate.getMonth();
-            let totalMonthsPassed = (yearsDiff * 12) + monthsDiff;
+            const today = new Date();
+            
+            let elapsedMonths = (today.getFullYear() - borrowDate.getFullYear()) * 12 + (today.getMonth() - borrowDate.getMonth());
+            if (today.getDate() < borrowDate.getDate()) elapsedMonths--;
+            elapsedMonths = Math.max(0, elapsedMonths);
 
-            if (today.getDate() < borrowDate.getDate()) totalMonthsPassed -= 1;
-            totalMonthsPassed = Math.max(0, totalMonthsPassed);
+            let calculatedInterest = 0;
 
-            let termMonths = debt.termMonths || 1;
-
-            if (debt.advanceInterest && totalMonthsPassed === 0) {
-                totalMonthsPassed = termMonths;
-            } else if (totalMonthsPassed < termMonths && debt.advanceInterest) {
-                totalMonthsPassed = Math.max(totalMonthsPassed, termMonths);
-            }
-
-            let currentVal = debt.originalAmount;
-            const type = debt.interestType || 'simple';
-            const rate = debt.interestRate || 0;
-            const overrideVal = parseFloat(debt.overrideInterest) || 0;
-
-            if (type === 'compound') {
-                for (let i = 0; i < totalMonthsPassed; i++) {
-                    currentVal += currentVal * (rate / 100);
-                }
+            if (type === 'simple') {
+                let monthsToCharge = Math.min(elapsedMonths, termMonths);
+                if (advanceAdded && monthsToCharge < 1) monthsToCharge = 1;
+                calculatedInterest = principal * (rate / 100) * monthsToCharge;
+            } else if (type === 'compound') {
+                let monthsToCharge = Math.min(elapsedMonths, termMonths);
+                if (advanceAdded && monthsToCharge < 1) monthsToCharge = 1;
+                calculatedInterest = principal * (Math.pow(1 + (rate / 100), monthsToCharge) - 1);
             } else if (type === 'diminishing') {
-                let currentBalance = debt.originalAmount;
-                let monthlyPrincipal = debt.originalAmount / termMonths;
-                currentVal = 0;
-                for (let i = 0; i < totalMonthsPassed; i++) {
-                    let interest = Math.max(0, currentBalance) * (rate / 100);
-                    currentVal += monthlyPrincipal + interest;
-                    currentBalance -= monthlyPrincipal;
+                let schedule = generateAmortizationSchedule(debt);
+                let activeMonths = Math.min(Math.max(1, elapsedMonths), termMonths);
+                let totalInt = 0;
+                for (let i = 0; i < activeMonths && i < schedule.length; i++) {
+                    totalInt += schedule[i].interest;
                 }
-                if (totalMonthsPassed === 0) currentVal = debt.originalAmount;
+                calculatedInterest = totalInt;
             } else if (type === 'equal_payment') {
-                let r = rate / 100;
-                if (r > 0) {
-                    let pmt = debt.originalAmount * (r * Math.pow(1 + r, termMonths)) / (Math.pow(1 + r, termMonths) - 1);
-                    currentVal = pmt * Math.min(totalMonthsPassed, termMonths);
-                } else {
-                    currentVal = debt.originalAmount;
+                let schedule = generateAmortizationSchedule(debt);
+                let activeMonths = Math.min(Math.max(1, elapsedMonths), termMonths);
+                let totalInt = 0;
+                for (let i = 0; i < activeMonths && i < schedule.length; i++) {
+                    totalInt += schedule[i].interest;
                 }
-                if (totalMonthsPassed === 0) currentVal = debt.originalAmount;
-            } else if (type === 'simple') {
-                let monthlySimpleInterest = debt.originalAmount * (rate / 100);
-                currentVal += monthlySimpleInterest * totalMonthsPassed;
+                calculatedInterest = totalInt;
             } else if (type === 'fixed') {
-                currentVal += overrideVal * totalMonthsPassed;
+                let monthsToCharge = Math.min(elapsedMonths, termMonths);
+                if (advanceAdded && monthsToCharge < 1) monthsToCharge = 1;
+                calculatedInterest = overrideInterest * monthsToCharge;
+            } else {
+                calculatedInterest = 0;
             }
 
-            if (today > dueDate) {
-                let pYears = today.getFullYear() - dueDate.getFullYear();
-                let pMonths = today.getMonth() - dueDate.getMonth();
-                let overdueMonthsPassed = (pYears * 12) + pMonths;
-                if (today.getDate() < dueDate.getDate()) overdueMonthsPassed -= 1;
-                overdueMonthsPassed = Math.max(0, overdueMonthsPassed);
-
-                for (let j = 0; j <= overdueMonthsPassed; j++) {
-                    if (type === 'compound') {
-                        currentVal += currentVal * (rate / 100);
-                    } else if (type === 'diminishing' || type === 'equal_payment') {
-                        currentVal += (debt.originalAmount / termMonths) * (rate / 100);
-                    } else if (type === 'simple') {
-                        currentVal += debt.originalAmount * (rate / 100);
-                    } else if (type === 'fixed') {
-                        currentVal += overrideVal;
-                    }
-                }
-            }
-
-            return currentVal;
+            return principal + Math.max(0, calculatedInterest);
         }
 
-        debtForm.addEventListener('submit', function(e) {
+        function generateAmortizationSchedule(debt) {
+            const principal = parseFloat(debt.amount) || 0;
+            const rate = parseFloat(debt.interestRate) || 0;
+            const overrideInterest = parseFloat(debt.overrideInterest) || 0;
+            const termMonths = debt.termOption === 'custom' ? 12 : (parseInt(debt.termOption) || 1);
+            const type = debt.interestType || 'simple';
+            const startDate = new Date(debt.date);
+
+            let schedule = [];
+            let remainingBalance = principal;
+
+            if (type === 'diminishing') {
+                const monthlyPrincipal = principal / termMonths;
+                for (let m = 1; m <= termMonths; m++) {
+                    let interestPayment = remainingBalance * (rate / 100);
+                    let totalPayment = monthlyPrincipal + interestPayment;
+                    remainingBalance -= monthlyPrincipal;
+                    if (remainingBalance < 0.01) remainingBalance = 0;
+
+                    let dueDate = new Date(startDate);
+                    dueDate.setMonth(dueDate.getMonth() + m);
+
+                    schedule.push({
+                        period: m,
+                        dueDate: dueDate.toISOString().split('T')[0],
+                        principal: monthlyPrincipal,
+                        interest: interestPayment,
+                        totalPayment: totalPayment,
+                        remainingBalance: remainingBalance
+                    });
+                }
+            } else if (type === 'equal_payment') {
+                const r = rate / 100;
+                let pmt = r > 0 ? principal * (r * Math.pow(1 + r, termMonths)) / (Math.pow(1 + r, termMonths) - 1) : principal / termMonths;
+                
+                for (let m = 1; m <= termMonths; m++) {
+                    let interestPayment = remainingBalance * r;
+                    let principalPayment = pmt - interestPayment;
+                    remainingBalance -= principalPayment;
+                    if (remainingBalance < 0.01) remainingBalance = 0;
+
+                    let dueDate = new Date(startDate);
+                    dueDate.setMonth(dueDate.getMonth() + m);
+
+                    schedule.push({
+                        period: m,
+                        dueDate: dueDate.toISOString().split('T')[0],
+                        principal: principalPayment,
+                        interest: interestPayment,
+                        totalPayment: pmt,
+                        remainingBalance: remainingBalance
+                    });
+                }
+            } else {
+                const monthlyPrincipal = principal / termMonths;
+                let monthlyInterest = 0;
+                if (type === 'fixed') monthlyInterest = overrideInterest;
+                else if (type === 'simple') monthlyInterest = principal * (rate / 100);
+                else if (type === 'compound') monthlyInterest = (principal * Math.pow(1 + rate/100, termMonths) - principal) / termMonths;
+
+                for (let m = 1; m <= termMonths; m++) {
+                    let totalPayment = monthlyPrincipal + monthlyInterest;
+                    remainingBalance -= monthlyPrincipal;
+                    if (remainingBalance < 0.01) remainingBalance = 0;
+
+                    let dueDate = new Date(startDate);
+                    dueDate.setMonth(dueDate.getMonth() + m);
+
+                    schedule.push({
+                        period: m,
+                        dueDate: dueDate.toISOString().split('T')[0],
+                        principal: monthlyPrincipal,
+                        interest: monthlyInterest,
+                        totalPayment: totalPayment,
+                        remainingBalance: remainingBalance
+                    });
+                }
+            }
+
+            return schedule;
+        }
+
+        // SAVE DEBT FORM SUBMISSION
+        function handleSaveDebtForm(e) {
             e.preventDefault();
             const name = document.getElementById('borrowerName').value.trim();
             const amount = parseFloat(document.getElementById('debtAmount').value);
             const interestType = document.getElementById('selectedInterestTypeSelect').value;
-            
-            let interestRate = 0;
-            let overrideInterest = 0;
-            let advanceInterest = false;
-
-            if (interestType === 'simple' || interestType === 'compound' || interestType === 'diminishing' || interestType === 'equal_payment') {
-                interestRate = parseFloat(document.getElementById('debtInterest').value) || 0;
-                advanceInterest = document.getElementById('advanceInterestToggle').checked;
-            } else if (interestType === 'fixed') {
-                overrideInterest = parseFloat(document.getElementById('debtOverrideInterest').value) || 0;
-                advanceInterest = document.getElementById('advanceInterestToggle').checked;
-            } else {
-                interestRate = 0;
-                overrideInterest = 0;
-                advanceInterest = false;
-            }
-            
-            const termOptionVal = document.getElementById('loanTermOption').value;
-            const termMonths = termOptionVal === 'custom' ? 1 : parseInt(termOptionVal) || 1;
-
+            const interestRate = parseFloat(document.getElementById('debtInterest').value) || 0;
+            const overrideInterest = parseFloat(document.getElementById('debtOverrideInterest').value) || 0;
+            const termOption = document.getElementById('loanTermOption').value;
             const date = document.getElementById('debtDate').value;
             const dueDate = document.getElementById('debtDueDate').value;
+            const advanceInterest = document.getElementById('advanceInterestToggle').checked;
 
-            debts.push({
-                id: Date.now(),
-                name: name,
-                originalAmount: amount,
-                interestType: interestType,
-                interestRate: interestRate,
-                overrideInterest: overrideInterest,
-                advanceInterest: advanceInterest,
-                termMonths: termMonths,
-                paidAmount: 0,
-                paymentsHistory: [],
-                date: date,
-                dueDate: dueDate,
-                lastPaymentDate: '-'
-            });
-
-            const existingAcc = debtorAccounts.find(a => a.name.toLowerCase() === name.toLowerCase());
-            if (!existingAcc) {
-                debtorAccounts.push({ name: name, password: '1234' });
-                triggerAutoSync('users');
-            }
-
-            triggerAutoSync('data');
-            debtForm.reset();
-            document.getElementById('debtDate').value = todayStr;
-            document.getElementById('loanTermOption').value = "1";
-            updateDueDateFromTerm();
-            handleInterestTypeDropdownChange('simple');
-        });
-
-        function formatCurrency(val) {
-            return '₱' + val.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        function renderTable() {
-            debtTableBody.innerHTML = '';
-            document.getElementById('recordCount').innerText = `${debts.length} records`;
-
-            if (debts.length === 0) {
-                debtTableBody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-zinc-500 text-sm">No debt records found.</td></tr>`;
+            if (!name || isNaN(amount) || amount <= 0) {
+                alert('Please fill in valid borrower name and loan amount.');
                 return;
             }
 
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const newDebt = {
+                name,
+                amount,
+                interestType,
+                interestRate,
+                overrideInterest,
+                termOption,
+                date,
+                dueDate,
+                advanceInterest,
+                paidAmount: 0,
+                lastPaymentDate: null,
+                paymentHistory: []
+            };
+
+            debts.push(newDebt);
+            triggerAutoSync('data');
+
+            document.getElementById('debtFormSide').reset();
+            document.getElementById('debtDate').value = todayStr;
+            document.getElementById('paymentDate').value = todayStr;
+            handleInterestTypeDropdownChange('simple');
+            updateDueDateFromTerm();
+            
+            toggleSideDebtDrawer();
+            alert('Debt record saved successfully!');
+        }
+
+        // HANDLE COMPACT OPTION DROPDOWN CHANGE
+        function handleDebtorActionDropdown(selectElem, index) {
+            const action = selectElem.value;
+            if (!action) return;
+
+            if (action === 'pay') {
+                openPaymentModal(index);
+            } else if (action === 'logs') {
+                openTrackPaymentsModal(index);
+            } else if (action === 'schedule') {
+                openAmortizationModal(index);
+            } else if (action === 'delete') {
+                deleteDebt(index);
+            }
+
+            selectElem.value = "";
+        }
+
+        // RENDER LEDGER TABLE WITH COMPACT DROPDOWN OPTIONS
+        function renderTable() {
+            const tbody = document.getElementById('debtTableBody');
+            tbody.innerHTML = '';
+            document.getElementById('recordCount').innerText = `${debts.length} records`;
+
+            if (debts.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-zinc-500 text-sm">No debt records found. Click the side button to add a new debt!</td></tr>`;
+                return;
+            }
 
             debts.forEach((debt, index) => {
-                if (debt.originalAmount === undefined) debt.originalAmount = debt.amount;
-                if (!debt.paymentsHistory) debt.paymentsHistory = [];
-                if (!debt.termMonths) debt.termMonths = 1;
-
                 const totalDebt = calculateCurrentTotal(debt);
-                const balance = totalDebt - debt.paidAmount;
-
-                let rateDisplay = '';
-                if (debt.interestType === 'compound') {
-                    rateDisplay = `<span class="text-cyan-300 font-semibold">Compound: ${debt.interestRate}% / mo</span>`;
-                } else if (debt.interestType === 'diminishing') {
-                    rateDisplay = `<span class="text-emerald-300 font-semibold">Diminishing: ${debt.interestRate}% / mo</span>`;
-                } else if (debt.interestType === 'equal_payment') {
-                    rateDisplay = `<span class="text-indigo-300 font-semibold">Equal Amort: ${debt.interestRate}% / mo</span>`;
-                } else if (debt.interestType === 'simple') {
-                    rateDisplay = `<span class="text-teal-300 font-semibold">Simple: ${debt.interestRate}% / mo</span>`;
-                } else if (debt.interestType === 'fixed') {
-                    rateDisplay = `<span class="text-amber-400 font-semibold">Fixed: ₱${debt.overrideInterest} / mo</span>`;
-                } else {
-                    rateDisplay = `<span class="text-zinc-500 italic">No Interest</span>`;
-                }
-
-                if (debt.advanceInterest && debt.interestType !== 'none') {
-                    rateDisplay += ` <span class="bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 text-[10px] px-1 py-0.5 rounded" title="Interest in Advance Enabled">(+Adv ${debt.termMonths}mo)</span>`;
-                }
-
-                let actionColumnHTML = '';
-                let statusDropdownHTML = `
-                    <select onchange="handleDebtorActionDropdown(this, ${index})" class="bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 rounded-xl px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-cyan-500">
-                        <option value="" disabled selected>Actions...</option>
-                        <option value="track">📊 Track Payments</option>
-                        <option value="renew">🔄 Renew Loan</option>
-                        <option value="edit">✏️ Edit Details</option>
-                        <option value="delete">🗑️ Delete Debt</option>
-                    </select>
-                `;
-
-                let monthlyPaymentBtn = `
-                    <button onclick="openAmortizationModal(${index})" title="View Monthly Amortization Schedule" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-sm shadow-teal-900/20 transition inline-flex items-center gap-1">
-                        <i class="fa-solid fa-calendar-days"></i> Monthly Payment
-                    </button>
-                `;
-
-                if (balance > 0.01) {
-                    actionColumnHTML = `
-                        <div class="flex items-center justify-center gap-2 flex-wrap">
-                            ${monthlyPaymentBtn}
-                            <button onclick="openPaymentModal(${index})" title="Pay" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-sm shadow-cyan-900/20 transition inline-flex items-center gap-1"><i class="fa-solid fa-peso-sign"></i> Pay</button>
-                            ${statusDropdownHTML}
-                        </div>
-                    `;
-                } else {
-                    actionColumnHTML = `
-                        <div class="flex items-center justify-center gap-2 flex-wrap">
-                            ${monthlyPaymentBtn}
-                            <span class="text-xs text-emerald-400 font-semibold px-2">Paid</span>
-                            ${statusDropdownHTML}
-                        </div>
-                    `;
-                }
+                const balance = Math.max(0, totalDebt - debt.paidAmount);
+                
+                let interestDisplay = '';
+                if (debt.interestType === 'fixed') interestDisplay = `₱${debt.overrideInterest || 0} / mo (Fixed)`;
+                else if (debt.interestType === 'none') interestDisplay = 'No Interest';
+                else interestDisplay = `${debt.interestRate || 0}% (${debt.interestType || 'simple'})`;
 
                 const row = document.createElement('tr');
-                row.className = "hover:bg-zinc-800/40 transition";
+                row.className = "hover:bg-zinc-800/40 transition border-b border-zinc-800/60";
                 row.innerHTML = `
-                    <td class="py-3.5 px-4 font-semibold text-white text-sm">${debt.name}</td>
-                    <td class="py-3.5 px-4">${formatCurrency(debt.originalAmount)}</td>
-                    <td class="py-3.5 px-4 text-xs">${rateDisplay}</td>
-                    <td class="py-3.5 px-4 text-white font-semibold">${formatCurrency(totalDebt)}</td>
-                    <td class="py-3.5 px-4 text-cyan-400 font-medium">${formatCurrency(debt.paidAmount)}</td>
-                    <td class="py-3.5 px-4 text-cyan-400 font-bold">${formatCurrency(Math.max(0, balance))}</td>
-                    <td class="py-3.5 px-4 text-zinc-400 text-xs">${debt.date}</td>
-                    <td class="py-3.5 px-4 text-zinc-300 font-medium text-xs">${debt.dueDate || '-'}</td>
-                    <td class="py-3.5 px-4 text-zinc-400 text-xs">${debt.lastPaymentDate}</td>
-                    <td class="py-3.5 px-4 text-center">${actionColumnHTML}</td>
+                    <td class="py-3.5 px-4 font-bold text-white flex items-center gap-2">
+                        <span>${debt.name}</span>
+                    </td>
+                    <td class="py-3.5 px-4 font-semibold text-zinc-200">${formatCurrency(debt.amount)}</td>
+                    <td class="py-3.5 px-4 text-xs text-zinc-300">${interestDisplay}</td>
+                    <td class="py-3.5 px-4 font-bold text-red-400">${formatCurrency(totalDebt)}</td>
+                    <td class="py-3.5 px-4 font-bold text-emerald-400">${formatCurrency(debt.paidAmount)}</td>
+                    <td class="py-3.5 px-4 font-bold ${balance <= 0 ? 'text-emerald-400' : 'text-amber-400'}">${formatCurrency(balance)}</td>
+                    <td class="py-3.5 px-4 text-xs text-zinc-400">${debt.date}</td>
+                    <td class="py-3.5 px-4 text-xs text-zinc-400">${debt.dueDate || '-'}</td>
+                    <td class="py-3.5 px-4 text-xs text-zinc-400">${debt.lastPaymentDate || '-'}</td>
+                    <td class="py-3.5 px-4 text-center">
+                        <div class="inline-block relative">
+                            <select onchange="handleDebtorActionDropdown(this, ${index})" class="bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-red-500 cursor-pointer shadow-sm">
+                                <option value="" disabled selected>⚙️ Options</option>
+                                <option value="pay" class="bg-zinc-900 text-emerald-400 font-semibold">💵 Record Payment</option>
+                                <option value="logs" class="bg-zinc-900 text-red-400 font-semibold">📋 Transaction Logs</option>
+                                <option value="schedule" class="bg-zinc-900 text-amber-300 font-semibold">📅 Amortization Schedule</option>
+                                <option value="delete" class="bg-zinc-900 text-rose-400 font-semibold">🗑️ Delete Record</option>
+                            </select>
+                        </div>
+                    </td>
                 `;
-                debtTableBody.appendChild(row);
+                tbody.appendChild(row);
             });
         }
 
-        // --- AMORTIZATION SCHEDULE MODAL FUNCTIONS ---
-        let currentAmortizationIndex = null;
+        // SUMMARY METRICS & CHARTS
+        function updateSummary() {
+            let totalLentVal = 0;
+            let totalPaidVal = 0;
+
+            debts.forEach(debt => {
+                const currentTotal = calculateCurrentTotal(debt);
+                totalLentVal += currentTotal;
+                totalPaidVal += parseFloat(debt.paidAmount) || 0;
+            });
+
+            const remainingVal = Math.max(0, totalLentVal - totalPaidVal);
+
+            document.getElementById('totalLent').innerText = formatCurrency(totalLentVal);
+            document.getElementById('totalPaid').innerText = formatCurrency(totalPaidVal);
+            document.getElementById('totalBalance').innerText = formatCurrency(remainingVal);
+
+            renderCharts(totalLentVal, totalPaidVal, remainingVal);
+        }
+
+        function renderCharts(totalLent, totalPaid, remaining) {
+            const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+            const yearlyCtx = document.getElementById('yearlyChart').getContext('2d');
+
+            if (monthlyChartInstance) monthlyChartInstance.destroy();
+            if (yearlyChartInstance) yearlyChartInstance.destroy();
+
+            const monthlyDataLent = new Array(12).fill(0);
+            const monthlyDataPaid = new Array(12).fill(0);
+            const currentYear = new Date().getFullYear();
+
+            debts.forEach(debt => {
+                const borrowDate = new Date(debt.date);
+                if (borrowDate.getFullYear() === currentYear) {
+                    monthlyDataLent[borrowDate.getMonth()] += calculateCurrentTotal(debt);
+                }
+                if (debt.paymentHistory) {
+                    debt.paymentHistory.forEach(p => {
+                        const pDate = new Date(p.date);
+                        if (pDate.getFullYear() === currentYear) {
+                            monthlyDataPaid[pDate.getMonth()] += parseFloat(p.amount) || 0;
+                        }
+                    });
+                }
+            });
+
+            monthlyChartInstance = new Chart(monthlyCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    datasets: [
+                        { label: 'Total Lent (₱)', data: monthlyDataLent, backgroundColor: 'rgba(239, 68, 68, 0.7)', borderRadius: 6 },
+                        { label: 'Total Paid (₱)', data: monthlyDataPaid, backgroundColor: 'rgba(16, 185, 129, 0.7)', borderRadius: 6 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#d4d4d8', font: { size: 11 } } } },
+                    scales: {
+                        x: { ticks: { color: '#a1a1aa' }, grid: { color: '#27272a' } },
+                        y: { ticks: { color: '#a1a1aa' }, grid: { color: '#27272a' } }
+                    }
+                }
+            });
+
+            yearlyChartInstance = new Chart(yearlyCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Total Paid', 'Remaining Balance'],
+                    datasets: [{
+                        data: [totalPaid, remaining],
+                        backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(245, 158, 11, 0.8)'],
+                        borderColor: '#18181b',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#d4d4d8', font: { size: 11 } } } }
+                }
+            });
+        }
+
+        // DEBTOR PORTAL COMPACT VIEW
+        function renderDebtorPortalView(debtorName) {
+            document.getElementById('debtorPortalWelcomeName').innerText = debtorName;
+            const container = document.getElementById('debtorPortalContent');
+            container.innerHTML = '';
+
+            const matchedDebts = debts.filter(d => d.name.toLowerCase() === debtorName.toLowerCase());
+
+            if (matchedDebts.length === 0) {
+                container.innerHTML = `<div class="bg-zinc-900/70 p-8 rounded-2xl border border-zinc-800 text-center text-zinc-500">No active loans or repayment records found under your account name.</div>`;
+                return;
+            }
+
+            matchedDebts.forEach((debt) => {
+                const totalDebt = calculateCurrentTotal(debt);
+                const balance = Math.max(0, totalDebt - debt.paidAmount);
+                const globalIndex = debts.indexOf(debt);
+
+                const card = document.createElement('div');
+                card.className = "bg-zinc-900/80 backdrop-blur-md p-5 rounded-2xl border border-zinc-800 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4";
+                card.innerHTML = `
+                    <div class="space-y-1.5">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold text-white">Loan Record</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-red-950 border border-red-800 text-red-400 font-bold uppercase">${debt.interestType || 'simple'}</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs pt-1">
+                            <div><span class="text-zinc-500 block">Principal:</span><span class="font-bold text-zinc-200">${formatCurrency(debt.amount)}</span></div>
+                            <div><span class="text-zinc-500 block">Total w/ Interest:</span><span class="font-bold text-red-400">${formatCurrency(totalDebt)}</span></div>
+                            <div><span class="text-zinc-500 block">Total Paid:</span><span class="font-bold text-emerald-400">${formatCurrency(debt.paidAmount)}</span></div>
+                            <div><span class="text-zinc-500 block">Remaining Balance:</span><span class="font-bold text-amber-400">${formatCurrency(balance)}</span></div>
+                        </div>
+                        <div class="text-[11px] text-zinc-400 pt-1 flex gap-3 flex-wrap">
+                            <span><i class="fa-regular fa-calendar mr-1"></i>Borrowed: ${debt.date}</span>
+                            <span><i class="fa-regular fa-calendar-check mr-1"></i>Due Date: ${debt.dueDate || 'N/A'}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 w-full md:w-auto justify-end border-t md:border-t-0 border-zinc-800 pt-3 md:pt-0">
+                        <button onclick="openPaymentModal(${globalIndex})" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-md shadow-emerald-950/40 flex items-center gap-1.5">
+                            <i class="fa-solid fa-hand-holding-dollar"></i> Pay
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // PAYMENT MODAL ENGINE
+        let currentPaymentIndex = -1;
+
+        function openPaymentModal(index) {
+            currentPaymentIndex = index;
+            const debt = debts[index];
+            const totalDebt = calculateCurrentTotal(debt);
+            const balance = Math.max(0, totalDebt - debt.paidAmount);
+
+            document.getElementById('modalIndex').value = index;
+            document.getElementById('modalBorrowerName').innerText = debt.name;
+            document.getElementById('modalRemainingBalance').innerText = formatCurrency(balance);
+            document.getElementById('paymentAmount').value = '';
+            document.getElementById('paymentDate').value = todayStr;
+            document.getElementById('autoDeductFull').checked = false;
+
+            const modal = document.getElementById('paymentModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closePaymentModal() {
+            const modal = document.getElementById('paymentModal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        }
+
+        function toggleAutoDeduct(checkbox) {
+            if (checkbox.checked && currentPaymentIndex !== -1) {
+                const debt = debts[currentPaymentIndex];
+                const totalDebt = calculateCurrentTotal(debt);
+                const balance = Math.max(0, totalDebt - debt.paidAmount);
+                document.getElementById('paymentAmount').value = balance.toFixed(2);
+            }
+        }
+
+        function handleSavePaymentForm(e) {
+            e.preventDefault();
+            const index = parseInt(document.getElementById('modalIndex').value);
+            const amount = parseFloat(document.getElementById('paymentAmount').value);
+            const date = document.getElementById('paymentDate').value;
+
+            if (isNaN(amount) || amount <= 0) {
+                alert('Please enter a valid payment amount.');
+                return;
+            }
+
+            const debt = debts[index];
+            debt.paidAmount = (parseFloat(debt.paidAmount) || 0) + amount;
+            debt.lastPaymentDate = date;
+
+            if (!debt.paymentHistory) debt.paymentHistory = [];
+            debt.paymentHistory.push({ amount, date });
+
+            triggerAutoSync('data');
+            closePaymentModal();
+            alert('Payment recorded successfully!');
+        }
+
+        // TRACK PAYMENTS MODAL LOGIC
+        function openTrackPaymentsModal(index) {
+            const debt = debts[index];
+            const totalDebt = calculateCurrentTotal(debt);
+            const balance = Math.max(0, totalDebt - debt.paidAmount);
+
+            document.getElementById('trackModalDebtorName').innerText = debt.name;
+            document.getElementById('trackModalTotalPaid').innerText = formatCurrency(debt.paidAmount);
+            document.getElementById('trackModalRemainingBalance').innerText = formatCurrency(balance);
+
+            const tbody = document.getElementById('trackModalTableBody');
+            tbody.innerHTML = '';
+
+            if (!debt.paymentHistory || debt.paymentHistory.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="2" class="text-center py-4 text-zinc-500">No payment logs recorded yet.</td></tr>`;
+            } else {
+                debt.paymentHistory.forEach(p => {
+                    const row = document.createElement('tr');
+                    row.className = "border-b border-zinc-800/50";
+                    row.innerHTML = `
+                        <td class="py-2 px-3 text-zinc-300">${p.date}</td>
+                        <td class="py-2 px-3 text-right font-bold text-emerald-400">${formatCurrency(p.amount)}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+
+            const modal = document.getElementById('trackPaymentsModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeTrackPaymentsModal() {
+            const modal = document.getElementById('trackPaymentsModal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        }
+
+        // AMORTIZATION MODAL LOGIC
+        let currentAmortizationDebt = null;
 
         function openAmortizationModal(index) {
-            currentAmortizationIndex = index;
             const debt = debts[index];
-            document.getElementById('amortizationDebtorName').innerText = debt.name;
+            currentAmortizationDebt = debt;
 
+            document.getElementById('amortizationDebtorName').innerText = debt.name;
             const tbody = document.getElementById('amortizationTableBody');
             tbody.innerHTML = '';
 
-            const term = debt.termMonths || 1;
-            const principal = debt.originalAmount;
-            const startDate = new Date(debt.date);
-            const type = debt.interestType || 'simple';
-            const rate = debt.interestRate || 0;
-            const overrideVal = parseFloat(debt.overrideInterest) || 0;
+            const schedule = generateAmortizationSchedule(debt);
 
-            let currentBalance = principal;
-            let rowsHTML = '';
-
-            let pmt = 0;
-            if (type === 'equal_payment') {
-                let r = rate / 100;
-                if (r > 0) {
-                    pmt = principal * (r * Math.pow(1 + r, term)) / (Math.pow(1 + r, term) - 1);
-                } else {
-                    pmt = principal / term;
-                }
-            }
-
-            for (let i = 1; i <= term; i++) {
-                let monthlyInterest = 0;
-                let monthlyPrincipal = 0;
-                let totalMonthlyPayment = 0;
-
-                if (type === 'compound') {
-                    monthlyInterest = currentBalance * (rate / 100);
-                    monthlyPrincipal = principal / term;
-                    totalMonthlyPayment = monthlyPrincipal + monthlyInterest;
-                } else if (type === 'diminishing') {
-                    monthlyInterest = currentBalance * (rate / 100);
-                    monthlyPrincipal = principal / term;
-                    totalMonthlyPayment = monthlyPrincipal + monthlyInterest;
-                } else if (type === 'equal_payment') {
-                    monthlyInterest = currentBalance * (rate / 100);
-                    monthlyPrincipal = pmt - monthlyInterest;
-                    totalMonthlyPayment = pmt;
-                } else if (type === 'simple') {
-                    monthlyInterest = principal * (rate / 100);
-                    monthlyPrincipal = principal / term;
-                    totalMonthlyPayment = monthlyPrincipal + monthlyInterest;
-                } else if (type === 'fixed') {
-                    monthlyInterest = overrideVal;
-                    monthlyPrincipal = principal / term;
-                    totalMonthlyPayment = monthlyPrincipal + monthlyInterest;
-                } else {
-                    monthlyInterest = 0;
-                    monthlyPrincipal = principal / term;
-                    totalMonthlyPayment = monthlyPrincipal;
-                }
-
-                currentBalance = Math.max(0, currentBalance - monthlyPrincipal);
-
-                let dueDateObj = new Date(startDate);
-                dueDateObj.setMonth(dueDateObj.getMonth() + i);
-                let dueDateStr = dueDateObj.toISOString().split('T')[0];
-
-                rowsHTML += `
-                    <tr class="hover:bg-zinc-800/40 transition">
-                        <td class="py-3 px-4 font-semibold text-white">Month ${i}</td>
-                        <td class="py-3 px-4 text-zinc-300">${dueDateStr}</td>
-                        <td class="py-3 px-4 text-right text-cyan-400">${formatCurrency(monthlyPrincipal)}</td>
-                        <td class="py-3 px-4 text-right text-amber-400">${formatCurrency(monthlyInterest)}</td>
-                        <td class="py-3 px-4 text-right font-bold text-white">${formatCurrency(totalMonthlyPayment)}</td>
-                        <td class="py-3 px-4 text-right text-zinc-300 font-semibold">${formatCurrency(currentBalance)}</td>
-                    </tr>
+            schedule.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-zinc-800/60 hover:bg-zinc-800/40 transition";
+                tr.innerHTML = `
+                    <td class="py-2.5 px-4 font-semibold text-zinc-300">Month ${row.period}</td>
+                    <td class="py-2.5 px-4 text-zinc-400">${row.dueDate}</td>
+                    <td class="py-2.5 px-4 text-right font-mono text-zinc-300">${formatCurrency(row.principal)}</td>
+                    <td class="py-2.5 px-4 text-right font-mono text-red-400">${formatCurrency(row.interest)}</td>
+                    <td class="py-2.5 px-4 text-right font-mono font-bold text-white">${formatCurrency(row.totalPayment)}</td>
+                    <td class="py-2.5 px-4 text-right font-mono text-amber-400">${formatCurrency(row.remainingBalance)}</td>
                 `;
-            }
-
-            tbody.innerHTML = rowsHTML;
+                tbody.appendChild(tr);
+            });
 
             const modal = document.getElementById('amortizationModal');
             modal.classList.remove('hidden');
@@ -1696,511 +2042,23 @@
             window.print();
         }
 
-        function exportAmortizationDocx() {
-            if (currentAmortizationIndex === null) return;
-            const debt = debts[currentAmortizationIndex];
+        function exportAmortizationExcel() {
+            if (!currentAmortizationDebt) return;
+            const schedule = generateAmortizationSchedule(currentAmortizationDebt);
             
-            let htmlContent = `
-                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-                <head><meta charset='utf-8'><title>Amortization Schedule - ${debt.name}</title></head>
-                <body style='font-family: Arial, sans-serif;'>
-                <h2>Monthly Amortization Schedule</h2>
-                <p><strong>Borrower Name:</strong> ${debt.name}</p>
-                <p><strong>Principal Amount:</strong> ${formatCurrency(debt.originalAmount)}</p>
-                <p><strong>Loan Term:</strong> ${debt.termMonths} Months</p>
-                <p><strong>Date Borrowed:</strong> ${debt.date}</p>
-                <br/>
-                <table border='1' cellspacing='0' cellpadding='5' style='border-collapse: collapse; width: 100%; text-align: left;'>
-                    <tr style='background-color: #f2f2f2;'>
-                        <th>Month</th>
-                        <th>Due Date</th>
-                        <th>Principal</th>
-                        <th>Interest</th>
-                        <th>Total Payment</th>
-                        <th>Remaining Balance</th>
-                    </tr>
-            `;
+            const excelData = schedule.map(item => ({
+                "Month / Period": `Month ${item.period}`,
+                "Due Date": item.dueDate,
+                "Principal (₱)": item.principal,
+                "Interest (₱)": item.interest,
+                "Total Monthly Payment (₱)": item.totalPayment,
+                "Remaining Balance (₱)": item.remainingBalance
+            }));
 
-            const term = debt.termMonths || 1;
-            const principal = debt.originalAmount;
-            const startDate = new Date(debt.date);
-            const type = debt.interestType || 'simple';
-            const rate = debt.interestRate || 0;
-            const overrideVal = parseFloat(debt.overrideInterest) || 0;
-            let currentBalance = principal;
-
-            let pmt = 0;
-            if (type === 'equal_payment') {
-                let r = rate / 100;
-                if (r > 0) {
-                    pmt = principal * (r * Math.pow(1 + r, term)) / (Math.pow(1 + r, term) - 1);
-                } else {
-                    pmt = principal / term;
-                }
-            }
-
-            for (let i = 1; i <= term; i++) {
-                let monthlyInterest = 0;
-                let monthlyPrincipal = 0;
-                let totalMonthlyPayment = 0;
-
-                if (type === 'compound') {
-                    monthlyInterest = currentBalance * (rate / 100);
-                    monthlyPrincipal = principal / term;
-                    totalMonthlyPayment = monthlyPrincipal + monthlyInterest;
-                } else if (type === 'diminishing') {
-                    monthlyInterest = currentBalance * (rate / 100);
-                    monthlyPrincipal = principal / term;
-                    totalMonthlyPayment = monthlyPrincipal + monthlyInterest;
-                } else if (type === 'equal_payment') {
-                    monthlyInterest = currentBalance * (rate / 100);
-                    monthlyPrincipal = pmt - monthlyInterest;
-                    totalMonthlyPayment = pmt;
-                } else if (type === 'simple') {
-                    monthlyInterest = principal * (rate / 100);
-                    monthlyPrincipal = principal / term;
-                    totalMonthlyPayment = monthlyPrincipal + monthlyInterest;
-                } else if (type === 'fixed') {
-                    monthlyInterest = overrideVal;
-                    monthlyPrincipal = principal / term;
-                    totalMonthlyPayment = monthlyPrincipal + monthlyInterest;
-                } else {
-                    monthlyInterest = 0;
-                    monthlyPrincipal = principal / term;
-                    totalMonthlyPayment = monthlyPrincipal;
-                }
-
-                currentBalance = Math.max(0, currentBalance - monthlyPrincipal);
-
-                let dueDateObj = new Date(startDate);
-                dueDateObj.setMonth(dueDateObj.getMonth() + i);
-                let dueDateStr = dueDateObj.toISOString().split('T')[0];
-
-                htmlContent += `
-                    <tr>
-                        <td>Month ${i}</td>
-                        <td>${dueDateStr}</td>
-                        <td>${formatCurrency(monthlyPrincipal)}</td>
-                        <td>${formatCurrency(monthlyInterest)}</td>
-                        <td>${formatCurrency(totalMonthlyPayment)}</td>
-                        <td>${formatCurrency(currentBalance)}</td>
-                    </tr>
-                `;
-            }
-
-            htmlContent += `</table></body></html>`;
-
-            const blob = new Blob(['\ufeff' + htmlContent], {
-                type: 'application/msword'
-            });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Amortization_Schedule_${debt.name.replace(/\s+/g, '_')}.docx`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        // --- DEBTOR HISTORY & REPORTS MODAL FUNCTIONS ---
-        function openDebtorHistoryModal() {
-            if (!currentUser || currentUser.role !== 'debtor') return;
-            const debtorName = currentUser.name;
-            document.getElementById('debtorHistoryName').innerText = debtorName;
-
-            const matchedDebts = debts.filter(d => d.name.toLowerCase() === debtorName.toLowerCase());
-            
-            let totalPaid = 0;
-            let totalLent = 0;
-            let allPayments = [];
-
-            matchedDebts.forEach(debt => {
-                const calculatedTotal = calculateCurrentTotal(debt);
-                totalLent += calculatedTotal;
-                totalPaid += debt.paidAmount;
-
-                if (debt.paymentsHistory && debt.paymentsHistory.length > 0) {
-                    debt.paymentsHistory.forEach(p => {
-                        allPayments.push({
-                            date: p.date,
-                            amount: p.amount,
-                            debtInfo: `Loan dated ${debt.date} (${formatCurrency(debt.originalAmount)})`
-                        });
-                    });
-                }
-            });
-
-            // Sort payments by date descending
-            allPayments.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            const totalBalance = Math.max(0, totalLent - totalPaid);
-            document.getElementById('debtorReportTotalPaid').innerText = formatCurrency(totalPaid);
-            document.getElementById('debtorReportTotalLent').innerText = formatCurrency(totalLent);
-            document.getElementById('debtorReportTotalBalance').innerText = formatCurrency(totalBalance);
-
-            const tbody = document.getElementById('debtorHistoryTableBody');
-            tbody.innerHTML = '';
-
-            if (allPayments.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-zinc-500 text-xs">No payment history recorded yet.</td></tr>`;
-            } else {
-                allPayments.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.className = "hover:bg-zinc-800/40 transition";
-                    row.innerHTML = `
-                        <td class="py-3 px-4 text-zinc-300 font-medium">${item.date}</td>
-                        <td class="py-3 px-4 text-zinc-400">${item.debtInfo}</td>
-                        <td class="py-3 px-4 text-right font-bold text-emerald-400">${formatCurrency(item.amount)}</td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            }
-
-            const modal = document.getElementById('debtorHistoryModal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function closeDebtorHistoryModal() {
-            const modal = document.getElementById('debtorHistoryModal');
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
-        }
-
-        function printDebtorHistoryReport() {
-            window.print();
-        }
-
-        function handleDebtorActionDropdown(selectElement, index) {
-            const action = selectElement.value;
-            selectElement.value = ""; 
-
-            if (action === 'track') {
-                openTrackPaymentsModal(index);
-            } else if (action === 'renew') {
-                openRenewModal(index);
-            } else if (action === 'edit') {
-                openEditModal(index);
-            } else if (action === 'delete') {
-                deleteDebt(index);
-            }
-        }
-
-        function updateSummary() {
-            let totalLentWithInterest = 0;
-            let totalPaid = 0;
-            debts.forEach(debt => {
-                if (debt.originalAmount === undefined) debt.originalAmount = debt.amount;
-                totalLentWithInterest += calculateCurrentTotal(debt);
-                totalPaid += debt.paidAmount;
-            });
-            let totalBalance = totalLentWithInterest - totalPaid;
-            document.getElementById('totalLent').innerText = formatCurrency(totalLentWithInterest);
-            document.getElementById('totalPaid').innerText = formatCurrency(totalPaid);
-            document.getElementById('totalBalance').innerText = formatCurrency(Math.max(0, totalBalance));
-
-            updateCharts(totalLentWithInterest, totalPaid, Math.max(0, totalBalance));
-        }
-
-        function updateCharts(totalLent, totalPaid, totalBalance) {
-            const currentYear = new Date().getFullYear();
-            const monthlyLent = new Array(12).fill(0);
-            const monthlyPaid = new Array(12).fill(0);
-
-            debts.forEach(debt => {
-                if (debt.date) {
-                    const d = new Date(debt.date);
-                    if (d.getFullYear() === currentYear) {
-                        const m = d.getMonth();
-                        monthlyLent[m] += calculateCurrentTotal(debt);
-                    }
-                }
-                if (debt.paymentsHistory && debt.paymentsHistory.length > 0) {
-                    debt.paymentsHistory.forEach(ph => {
-                        const pd = new Date(ph.date);
-                        if (pd.getFullYear() === currentYear) {
-                            const m = pd.getMonth();
-                            monthlyPaid[m] += ph.amount;
-                        }
-                    });
-                }
-            });
-
-            const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
-            if (monthlyChartInstance) {
-                monthlyChartInstance.data.datasets[0].data = monthlyLent;
-                monthlyChartInstance.data.datasets[1].data = monthlyPaid;
-                monthlyChartInstance.update();
-            } else {
-                monthlyChartInstance = new Chart(monthlyCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-                        datasets: [
-                            {
-                                label: 'Total Lent (₱)',
-                                data: monthlyLent,
-                                backgroundColor: 'rgba(244, 63, 94, 0.7)',
-                                borderColor: 'rgb(244, 63, 94)',
-                                borderWidth: 1,
-                                borderRadius: 6
-                            },
-                            {
-                                label: 'Total Paid (₱)',
-                                data: monthlyPaid,
-                                backgroundColor: 'rgba(6, 182, 212, 0.7)',
-                                borderColor: 'rgb(6, 182, 212)',
-                                borderWidth: 1,
-                                borderRadius: 6
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { labels: { color: '#d4d4d8', font: { size: 11 } } }
-                        },
-                        scales: {
-                            x: { grid: { color: 'rgba(82, 82, 91, 0.2)' }, ticks: { color: '#a1a1aa' } },
-                            y: { grid: { color: 'rgba(82, 82, 91, 0.2)' }, ticks: { color: '#a1a1aa' } }
-                        }
-                    }
-                });
-            }
-
-            const yearlyCtx = document.getElementById('yearlyChart').getContext('2d');
-            if (yearlyChartInstance) {
-                yearlyChartInstance.data.datasets[0].data = [totalPaid, totalBalance];
-                yearlyChartInstance.update();
-            } else {
-                yearlyChartInstance = new Chart(yearlyCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Paid', 'Remaining Balance'],
-                        datasets: [{
-                            data: [totalPaid, totalBalance],
-                            backgroundColor: ['rgb(6, 182, 212)', 'rgb(245, 158, 11)'],
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'bottom', labels: { color: '#d4d4d8', font: { size: 11 } } }
-                        }
-                    }
-                });
-            }
-        }
-
-        function openPaymentModal(index) {
-            const debt = debts[index];
-            const totalDebt = calculateCurrentTotal(debt);
-            const balance = Math.max(0, totalDebt - debt.paidAmount);
-            document.getElementById('modalIndex').value = index;
-            document.getElementById('modalBorrowerName').innerText = debt.name;
-            document.getElementById('modalRemainingBalance').innerText = formatCurrency(balance);
-            document.getElementById('paymentAmount').value = balance.toFixed(2);
-            document.getElementById('paymentAmount').max = balance;
-            document.getElementById('paymentDate').value = todayStr;
-            document.getElementById('autoDeductFull').checked = false;
-            document.getElementById('paymentAmount').disabled = false;
-            document.getElementById('paymentModal').classList.remove('hidden');
-            document.getElementById('paymentModal').classList.add('flex');
-        }
-
-        function toggleAutoDeduct(checkbox) {
-            const index = document.getElementById('modalIndex').value;
-            const debt = debts[index];
-            const totalDebt = calculateCurrentTotal(debt);
-            const balance = Math.max(0, totalDebt - debt.paidAmount);
-            const paymentInput = document.getElementById('paymentAmount');
-            if (checkbox.checked) {
-                paymentInput.value = balance.toFixed(2);
-                paymentInput.disabled = true;
-            } else {
-                paymentInput.disabled = false;
-            }
-        }
-
-        function closePaymentModal() {
-            document.getElementById('paymentModal').classList.remove('flex');
-            document.getElementById('paymentModal').classList.add('hidden');
-        }
-
-        paymentForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const index = parseInt(document.getElementById('modalIndex').value);
-            const payAmount = parseFloat(document.getElementById('paymentAmount').value);
-            const payDate = document.getElementById('paymentDate').value;
-            const debt = debts[index];
-            const totalDebt = calculateCurrentTotal(debt);
-            const balance = Math.max(0, totalDebt - debt.paidAmount);
-
-            if (payAmount > balance + 0.01) {
-                alert('Payment amount exceeds the remaining balance!');
-                return;
-            }
-
-            debt.paidAmount += payAmount;
-            debt.lastPaymentDate = payDate;
-            if (!debt.paymentsHistory) debt.paymentsHistory = [];
-            debt.paymentsHistory.push({ date: payDate, amount: payAmount });
-
-            triggerAutoSync('data');
-            closePaymentModal();
-        });
-
-        function openTrackPaymentsModal(index) {
-            const debt = debts[index];
-            const totalDebt = calculateCurrentTotal(debt);
-            const balance = Math.max(0, totalDebt - debt.paidAmount);
-
-            document.getElementById('trackModalDebtorName').innerText = debt.name;
-            document.getElementById('trackModalTotalPaid').innerText = formatCurrency(debt.paidAmount);
-            document.getElementById('trackModalRemainingBalance').innerText = formatCurrency(balance);
-
-            const tbody = document.getElementById('trackModalTableBody');
-            tbody.innerHTML = '';
-
-            if (debt.paymentsHistory && debt.paymentsHistory.length > 0) {
-                debt.paymentsHistory.forEach(log => {
-                    const row = document.createElement('tr');
-                    row.className = "border-b border-zinc-800/65";
-                    row.innerHTML = `
-                        <td class="py-2.5 px-3 text-zinc-300"><i class="fa-regular fa-calendar text-cyan-400 mr-1.5"></i> ${log.date}</td>
-                        <td class="py-2.5 px-3 text-right font-bold text-emerald-400">${formatCurrency(log.amount)}</td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            } else {
-                tbody.innerHTML = `<tr><td colspan="2" class="py-4 text-center text-zinc-500 text-xs">No payment records found for this debt yet.</td></tr>`;
-            }
-
-            const modal = document.getElementById('trackPaymentsModal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function closeTrackPaymentsModal() {
-            const modal = document.getElementById('trackPaymentsModal');
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
-        }
-
-        function openRenewModal(index) {
-            const debt = debts[index];
-            const totalDebt = calculateCurrentTotal(debt);
-            const currentBalance = Math.max(0, totalDebt - debt.paidAmount);
-            
-            let newAmount = prompt(`Renew balance for ${debt.name}:\nEnter the new Principal Amount:`, currentBalance.toFixed(2));
-            if (newAmount !== null && !isNaN(newAmount) && parseFloat(newAmount) > 0) {
-                debt.originalAmount = parseFloat(newAmount);
-                debt.paidAmount = 0;
-                debt.date = todayStr;
-                debt.paymentsHistory = [];
-                debt.lastPaymentDate = '-';
-                triggerAutoSync('data');
-                alert('Loan successfully renewed!');
-            }
-        }
-
-        function openEditModal(index) {
-            const debt = debts[index];
-            let newName = prompt("New Borrower name:", debt.name);
-            if (newName !== null && newName.trim() !== "") {
-                debt.name = newName.trim();
-                let newAmt = prompt("New Principal Amount:", debt.originalAmount);
-                if (newAmt !== null && !isNaN(newAmt)) {
-                    debt.originalAmount = parseFloat(newAmt);
-                    triggerAutoSync('data');
-                }
-            }
-        }
-
-        function deleteDebt(index) {
-            promptDeleteVerification('debt', index);
-        }
-
-        function renderDebtorPortalView(debtorName) {
-            document.getElementById('debtorPortalWelcomeName').innerText = debtorName;
-            const matchedDebts = debts.filter(d => d.name.toLowerCase() === debtorName.toLowerCase());
-            const portalContent = document.getElementById('debtorPortalContent');
-
-            if (matchedDebts.length === 0) {
-                portalContent.innerHTML = `<div class="bg-neutral-900/70 backdrop-blur-md p-8 rounded-2xl text-center text-zinc-500 border border-zinc-800">No debt records found under your name.</div>`;
-                return;
-            }
-
-            let portalHTML = '';
-            matchedDebts.forEach(debt => {
-                const totalDebt = calculateCurrentTotal(debt);
-                const balance = Math.max(0, totalDebt - debt.paidAmount);
-                
-                let paymentsListHTML = '';
-                if (debt.paymentsHistory && debt.paymentsHistory.length > 0) {
-                    debt.paymentsHistory.forEach(p => {
-                        paymentsListHTML += `
-                            <div class="flex justify-between items-center text-xs py-1.5 border-b border-zinc-800/50">
-                                <span class="text-zinc-400"><i class="fa-regular fa-calendar text-cyan-400 mr-1.5"></i>${p.date}</span>
-                                <span class="text-emerald-400 font-bold">${formatCurrency(p.amount)}</span>
-                            </div>
-                        `;
-                    });
-                } else {
-                    paymentsListHTML = `<p class="text-xs text-zinc-500 italic py-1">No payment transactions logged yet.</p>`;
-                }
-
-                portalHTML += `
-                    <div class="bg-neutral-900/70 backdrop-blur-md p-5 rounded-2xl border border-zinc-800 shadow-lg space-y-4">
-                        <div class="flex flex-wrap justify-between items-center gap-2 border-b border-zinc-800 pb-3">
-                            <div>
-                                <span class="text-[10px] text-zinc-400 uppercase font-semibold">Borrowed Date</span>
-                                <p class="text-xs font-bold text-white">${debt.date}</p>
-                            </div>
-                            <div>
-                                <span class="text-[10px] text-zinc-400 uppercase font-semibold">Due Date</span>
-                                <p class="text-xs font-bold text-amber-400">${debt.dueDate || '-'}</p>
-                            </div>
-                            <div>
-                                <span class="text-[10px] text-zinc-400 uppercase font-semibold">Status</span>
-                                <p class="text-xs font-bold ${balance <= 0.01 ? 'text-emerald-400' : 'text-cyan-400'}">${balance <= 0.01 ? 'FULLY PAID' : 'ACTIVE'}</p>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-zinc-950/50 p-3 rounded-xl border border-zinc-800/80 text-xs">
-                            <div>
-                                <span class="text-zinc-400 block text-[10px]">Principal</span>
-                                <span class="font-bold text-white">${formatCurrency(debt.originalAmount)}</span>
-                            </div>
-                            <div>
-                                <span class="text-zinc-400 block text-[10px]">Total w/ Interest</span>
-                                <span class="font-bold text-white">${formatCurrency(totalDebt)}</span>
-                            </div>
-                            <div>
-                                <span class="text-zinc-400 block text-[10px]">Total Paid</span>
-                                <span class="font-bold text-emerald-400">${formatCurrency(debt.paidAmount)}</span>
-                            </div>
-                            <div>
-                                <span class="text-zinc-400 block text-[10px]">Balance</span>
-                                <span class="font-bold text-amber-400">${formatCurrency(balance)}</span>
-                            </div>
-                        </div>
-
-                        <div>
-                            <h4 class="text-xs font-bold text-zinc-300 uppercase tracking-wider mb-2">Payment Logs</h4>
-                            <div class="bg-zinc-950/40 p-3 rounded-xl border border-zinc-800/60 max-h-36 overflow-y-auto">
-                                ${paymentsListHTML}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-
-            portalContent.innerHTML = portalHTML;
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Amortization Schedule");
+            XLSX.writeFile(workbook, `Amortization_${currentAmortizationDebt.name.replace(/\s+/g, '_')}.xlsx`);
         }
     </script>
 </body>
